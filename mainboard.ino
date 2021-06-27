@@ -6,8 +6,7 @@
 
 #define SerialConnection Serial
 
-const int COMMAND_SIZE = 52;
-const int MOTOR_NEUTRAL = 1500;
+#define COMMAND_SIZE 52
 
 int timer = 0;
 
