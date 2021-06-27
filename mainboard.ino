@@ -44,7 +44,7 @@ void loop()
   ++timer;
 
   // Wait untill there is at least 1 full command to read
-  if (SerialConnection.available() >= COMMAND_SIZE - 1)
+  if (SerialConnection.available() > COMMAND_SIZE)
   {
     // Don't read a string that starts in the middle of a command
     if (SerialConnection.read() == ':')
