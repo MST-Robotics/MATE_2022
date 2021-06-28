@@ -24,7 +24,7 @@ void setup()
   while (timer < 50)
   {
     // Note: talk about i2c addresses 
-    for (int i = 10; i<13; i++) 
+    for (byte i = 10; i<13; i++) 
     {
       Wire.beginTransmission(i);
       Wire.write("1500");
@@ -104,28 +104,14 @@ void drive(char array[])
     index++;
     ptr = strtok(NULL, ";");
   }
-  
-  Wire.beginTransmission(10);
-  Wire.write(commands[0]);
-  Wire.write(commands[3]);
-  Wire.write(':');
-  Wire.endTransmission();
-
-  Wire.beginTransmission(11);
-  Wire.write(commands[2]);
-  Wire.write(commands[1]);
-  Wire.write(':');
-  Wire.endTransmission();
-
-  Wire.beginTransmission(12);
-  Wire.write(commands[4]);
-  Wire.write(commands[5]);
-  Wire.write(':');
-  Wire.endTransmission();
-
-  Wire.beginTransmission(13);
-  Wire.write(commands[6]);
-  Wire.write(commands[7]);
-  Wire.write(':');
-  Wire.endTransmission();
+  for (byte addr=10, pos=0; addr<14; pos+=2) {
+    Wire.beginTransmission(addr++);
+    Wire.write(commands[addr]);
+    Wire.write(commands[addr+1]);
+    Wire.write(':');
+    byte b = Wire.endTransmission();
+    if (b != byte(0)) {
+      // debug: SerialConnection.write("i2c error: " + b);
+    }
+  }
 }
