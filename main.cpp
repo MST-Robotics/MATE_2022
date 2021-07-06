@@ -145,7 +145,7 @@ void teleop(double FWD, double STR, double RCW)
   transferData(data);
 }
 
-int main():
+int main()
 {
   //Look for connected port on computer and run commands through that port
   //Will loop until it finds the connected port
