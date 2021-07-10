@@ -47,7 +47,7 @@ void transferData(string data)
   {
     cout << c;
   }
-  //For WaterLeak test, search particular position for '1'
+  //To be added: WaterLeak test, search particular position for '1'
 }
 
 void teleop(double FWD, double STR, double RCW)
@@ -76,10 +76,10 @@ void teleop(double FWD, double STR, double RCW)
   
   double heading = -0.7853975; //based on 45 degree angle of motors
   //!!!VALUES AND MOTORS MAY CHANGE BASED ON NEW ROV DESIGN!!!
-  double FR = (-STR * sin(heading) - FWD * sin(heading) + RCW);   // A
-  double BR = (STR * cos(heading) + FWD * sin(heading) - RCW);    // B
-  double BL = (-STR * sin(heading) + FWD * cos(heading) - RCW);  // C
-  double FL = (-STR * cos(heading) + FWD * cos(heading) - RCW);    // D
+  double FR = (-STR * sin(heading) - FWD * sin(heading) + RCW);
+  double BR = (STR * cos(heading) + FWD * sin(heading) - RCW);
+  double BL = (-STR * sin(heading) + FWD * cos(heading) - RCW);
+  double FL = (-STR * cos(heading) + FWD * cos(heading) - RCW);
 
   double UL = -(gamepad1.rightTrigger() - gamepad1.leftTrigger());
   double UR = -(gamepad1.rightTrigger() - gamepad1.leftTrigger());
