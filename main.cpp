@@ -100,7 +100,7 @@ void teleop(double FWD, double STR, double RCW)
   //Normalize horizontal motor values if power level goes above 1.0 (100%)
   //Necessary for converting to motor-readable values
   double max = 1.0;
-for (int i = 0; i < 4; ++i)
+  for (int i = 0; i < 4; ++i)
   {
     if (abs(*vals[i]) > max)
     {
