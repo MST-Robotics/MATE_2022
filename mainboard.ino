@@ -1,44 +1,41 @@
 // Teensy++ 2.0
 
-#include <Wire.h>
 #include <SPI.h>
 #include <Servo.h>
 
 #define SerialConnection Serial
-//  Number of chars in a command.
-#define COMMAND_SIZE 52
+#define COMMAND_SIZE 52  // Number of chars in a command
 
 int timer = 0;
+Servo servos[7];
+String disabledCommand = "1500;1500;1500;1500;1500;1500;1500;1500;1500;1500;0";
 
-String disabledCommand = ":1500;1500;1500;1500;1500;1500;1500;1500;1500;1500;0";
-//  Runs once upon startup
+
+//  Runs once upon startup...takes a minimum of 13 seconds
 void setup()
 {
-  delay(6000);
-
-  Wire.begin();
+  delay(6000); // This delay is to ensure that both the esc's and the arduino are on, otherwise they'll miss the initialization command
+  
   Serial.begin(115200);
   Serial.setTimeout(80); //80?
+  
+  // valid pins for PWM are (grouped by their timer) {0}, {1, 24}, {14, 15, 16},  {25, 26, 27}
+  servos[0].attach(1); // FR
+  servos[1].attach(24); // FL
+  servos[2].attach(14); // BL
+  servos[3].attach(15); // BR
+  servos[4].attach(25); // UL
+  servos[5].attach(26); // UR
+  servos[6].attach(27); // UB
 
-  //  This section is designed to give the i2c connection time to initialize (maybe unnecessary?)
-  while (timer < 50)
-  {
-    /*  Bytes in arduino are unsigned ints (0-255), essentially smaller int, which helps with limited ram
-         The 'i' parameter is the inter-integrated circuit protocol (i2c) address that is being written to. Each component needs a unique address.
-    */
-    for (byte addr = 10; addr < 14; addr++)
-    {
-      Wire.beginTransmission(addr);
-      //  As per the arduino documentation of wire.h, any transmission larger than 32 bytes will lose data
-      Wire.write("1500");
-      Wire.write("1500");
-      Wire.write(':');
-      Wire.endTransmission();
-      delay(90);
-      ++timer;
-    }
-  }
+  // Initialize escs
+  for(byte i = 0; i < 7; i++)
+    servos[i].writeMicroseconds(1500);
+  delay(7000);  
+  // Servo shoulder, wristTilt, wristTwist; // use later
 }
+
+
 //  Loop runs indefinitely (like any function, non-static variables which fall out of scope are cleared after each loop);
 void loop()
 {
@@ -106,14 +103,7 @@ void drive(char array[])
     index++;
     ptr = strtok(NULL, ";");
   }
-  for (byte addr = 10, pos = 0; addr < 14; pos += 2) {
-    Wire.beginTransmission(addr++);
-    Wire.write(commands[pos]);
-    Wire.write(commands[pos + 1]);
-    Wire.write(':');
-    byte b = Wire.endTransmission();
-    if (b != byte(0)) {
-      // debug: SerialConnection.write("i2c error: " + b);
-    }
-  }
+  // Valid commands are between 1100 and 1900
+  for(byte i = 0; i < 7; i++)
+    servos[i].writeMicroseconds(commands[i]);
 }
