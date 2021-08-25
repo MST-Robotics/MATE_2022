@@ -108,8 +108,8 @@ void drive(char array[])
   }
   for (byte addr = 10, pos = 0; addr < 14; pos += 2) {
     Wire.beginTransmission(addr++);
-    Wire.write(commands[addr]);
-    Wire.write(commands[addr + 1]);
+    Wire.write(commands[pos]);
+    Wire.write(commands[pos + 1]);
     Wire.write(':');
     byte b = Wire.endTransmission();
     if (b != byte(0)) {
