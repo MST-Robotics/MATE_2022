@@ -263,21 +263,23 @@ int main()
 
     // Gets the current gamepad inputs
     activeGamepad.update()
-
+     
+    /* We need to determine what button is available on the gamepad to switch to autonomous mode. This could also be done through the drivestation if that is preferable.
+    // Switches to autonomous control if the ?? button is pressed (must take priority in case controller disconnects during autonomous)
+    if (activeGamepad.getButtonPressed(??) || drivestation.set("autonomous")) // pseudocode
+    {
+      disabled = false;
+      manual = false;
+    }
+    */
     // Disable the ROV if back button is pressed or the controller disconnects
-    if (activeGamepad.getButtonPressed(xButtons.Back) || !activeGamepad.connected())
+    /* else */ if (activeGamepad.getButtonPressed(xButtons.Back) || !activeGamepad.connected())
     {
       disabled = true;
       manual = true;
       waterLeak = false;
     }
-    /* We need to determine what button is available on the gamepad to switch to autonomous mode. This could also be done through the drivestation if that is preferable.
-    // Switches to autonomous control if the ?? button is pressed
-    else if (activeGamepad.getButtonPressed(??) || drivestation.set("autonomous")) // pseudocode
-    {
-      manual = false;
-    }
-    */
+    
     // Returns to manual mode and restarts the ROV's operations if the start button is pressed
     else if (activeGamepad.getButtonPressed(xButtons.Start) && activeGamepad.connected())
     {
