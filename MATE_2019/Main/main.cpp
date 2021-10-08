@@ -16,12 +16,12 @@ string imu;
 string prevIMU;
 int pitch = 0;  // Heading up and down
 int roll = 0;   // Angle side to side relative to ground
-int sleepTime = 90; // Added a new variable to easily change the command sleep time
+int yawOffset = 0;
 
 double pitchSetpoint = 0.0;
 double rollSetpoint = 0.0;
 
-int yawOffset = 0;
+int sleepTime = 90; // Added a new variable to easily change the command sleep time
 
 // Change the name of the port with the port name of your computer
 // Must remember that the backslashes are essential so do not remove them
