@@ -271,6 +271,11 @@ int main()
       disabled = false;
       manual = false;
     }
+    // Toggles to the other gamepad
+    else if (activeGamepad.getButtonPressed(??)) // pseudocode
+    {
+      gamepadToggle = !gamepadToggle;
+    }
     */
     // Disable the ROV if back button is pressed or the controller disconnects
     /* else */ if (activeGamepad.getButtonPressed(xButtons.Back) || !activeGamepad.connected())
