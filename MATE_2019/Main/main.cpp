@@ -30,7 +30,6 @@ Gamepad gamepad2 = Gamepad(2);
 Gamepad activeGamepad; // Added placeholder variable for either of the gamepads
 bool gamepadToggle = true; // Added gamepad toggle for easy switching, true is gamepad1, false is gamepad2
 
-
 // Sends the command string to the arduino and echoes back the returned output
 void transferData(string data)
 {
