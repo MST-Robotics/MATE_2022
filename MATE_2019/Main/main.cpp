@@ -12,8 +12,6 @@ bool waterLeak = false;
 bool manual = true; // Added manual variable to distinguish between when to use controller vs camera data
 
 char output[MAX_DATA_LENGTH]; // This is currently 255
-string imu;
-string prevIMU;
 int pitch = 0;  // Heading up and down
 int roll = 0;   // Angle side to side relative to ground
 int yawOffset = 0;
