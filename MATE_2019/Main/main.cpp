@@ -41,7 +41,7 @@ void transferData(string data)
   delete[] charArray;
 
   // Wait for arduino to process command
-  Sleep(sleepTime); //This value will need to be adjusted as we test the ROV (how long each command typically takes)
+  Sleep(sleepTime); // This value will need to be adjusted as we test the ROV (how long each command typically takes)
 
   // Expects to receive the command string echoed back, unless there is a water leak, then it will just recieve 'W'
   arduino.readSerialPort(output, MAX_DATA_LENGTH);
@@ -272,7 +272,7 @@ int main()
       waterLeak = false;
     }
     /* We need to determine what button is available on the gamepad to switch to autonomous mode. This could also be done through the drivestation if that is preferable.
-    //Switches to autonomous control if the ?? button is pressed
+    // Switches to autonomous control if the ?? button is pressed
     else if (activeGamepad.getButtonPressed(??) || drivestation.set("autonomous")) // pseudocode
     {
       manual = false;
