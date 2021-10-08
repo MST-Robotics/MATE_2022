@@ -69,7 +69,7 @@ void transferData(string data)
 }
 
 // Processes the gamepad inputs or camera data and converts it into a command string
-void teleop(controlMethod) // Added integer argument for control method (0 is camera, 1 is gamepad), rather than passing arbitrary controller values
+void teleop(int controlMethod) // Added integer argument for control method (0 is camera, 1 is gamepad), rather than passing arbitrary controller values
 {
 
   // : is verification character for arduino
