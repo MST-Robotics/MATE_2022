@@ -1,8 +1,7 @@
 #include "..\Headers\PID.h"
 
-//**********************************
 // Constructor functions
-//**********************************
+
 PID::PID(double p, double i, double d)
 {
   init();
@@ -41,37 +40,28 @@ void PID::init()
   setpointRange = 0;
 }
 
-//**********************************
+
 // Configuration functions
-//**********************************
-/**
- * Configure the Proportional gain parameter. <br>
- * this responds quicly to changes in setpoint, and provides most of the
- * initial driving force to make corrections. <br> Some systems can be used with
- * only a P gain, and many can be operated with only PI.<br> For position based
- * controllers, this is the first parameter to tune, with I second. <br> For
- * rate controlled systems, this is often the second after F.
- *
- * @param p Proportional gain. Affects output according to
- * <b>output+=P*(setpoint-current_value)</b>
- */
+
+//Configure the Proportional gain parameter. 
+//This responds quicly to changes in setpoint, and provides most of the initial driving force to make corrections. 
+//Some systems can be used with only a P gain, and many can be operated with only PI.
+//For position based controllers, this is the first parameter to tune, with I second. 
+//For rate controlled systems, this is often the second after F.
+//p is for Proportional gain. Affects output according to <b>output+=P*(setpoint-current_value)</b>
+
 void PID::setP(double p)
 {
   P = p;
   checkSigns();
 }
 
-/**
- * Changes the I parameter <br>
- * this is used for overcoming disturbances, and ensuring that the controller
- * always gets to the control mode. Typically tuned second for "Position" based
- * modes, and third for "Rate" or continuous based modes. <br> Affects output
- * through <b>output+=previous_errors*Igain ;previous_errors+=current_error</b>
- *
- * @see {@link #setMaxIOutput(double) setMaxIOutput} for how to restrict
- *
- * @param i New gain value for the Integral term
- */
+//Changes the I parameter
+//This is used for overcoming disturbances, and ensuring that the controller always gets to the control mode. 
+//Typically tuned second for "Position" based modes, and third for "Rate" or continuous based modes. 
+//Affects output through <b>output+=previous_errors*Igain ;previous_errors+=current_error</b>
+//See {@link #setMaxIOutput(double) setMaxIOutput} for how to restrict @param i New gain value for the Integral term
+
 void PID::setI(double i)
 {
   if (I != 0)
@@ -84,13 +74,10 @@ void PID::setI(double i)
   }
   I = i;
   checkSigns();
-  /* Implementation note:
-   * this Scales the accumulated error to avoid output errors.
-   * As an example doubling the I term cuts the accumulated error in half, which
-   * results in the output change due to the I term constant during the
-   * transition.
-   *
-   */
+  //Implementation note:
+  //This Scales the accumulated error to avoid output errors.
+  //As an example doubling the I term cuts the accumulated error in half, 
+  //Which results in the output change due to the I term constant during the transition.
 }
 
 void PID::setD(double d)
@@ -99,28 +86,24 @@ void PID::setD(double d)
   checkSigns();
 }
 
-/**Configure the FeedForward parameter. <br>
- * this is excellent for Velocity, rate, and other	continuous control modes
- * where you can expect a rough output value based solely on the setpoint.<br>
- * Should not be used in "position" based control modes.
- *
- * @param f Feed forward gain. Affects output according to
- * <b>output+=F*Setpoint</b>;
- */
+//Configure the FeedForward parameter. 
+//This is excellent for Velocity, rate,
+//Other	continuous control modes where you can expect a rough output value based solely on the setpoint.
+//Should not be used in "position" based control modes.
+//f is for Feed forward gain. Affects output according to <b>output+=F*Setpoint</b>;
+
 void PID::setF(double f)
 {
   F = f;
   checkSigns();
 }
 
-/** Create a new PID object.
- * @param p Proportional gain. Large if large difference between setpoint and
- * target.
- * @param i Integral gain.	Becomes large if setpoint cannot reach target
- * quickly.
- * @param d Derivative gain. Responds quickly to large changes in error. Small
- * values prevents P and I terms from causing overshoot.
- */
+//Creates a new PID object.
+//p, Proportional gain. Large if large difference between setpoint and target.
+//i is for Integral gain.	Becomes large if setpoint cannot reach target quickly.
+//d is for Derivative gain. Responds quickly to large changes in error. 
+//Small values prevents P and I terms from causing overshoot.
+
 void PID::setPID(double p, double i, double d)
 {
   P = p;
@@ -138,17 +121,16 @@ void PID::setPID(double p, double i, double d, double f)
   checkSigns();
 }
 
-/**Set the maximum output value contributed by the I component of the system
- * this can be used to prevent large windup issues and make tuning simpler
- * @param maximum. Units are the same as the expected output value
- */
+//Set the maximum output value contributed by the I component of the system
+//This can be used to prevent large windup issues and make tuning simpler
+//For maximum: Units are the same as the expected output value
+
 void PID::setMaxIOutput(double maximum)
 {
-  /* Internally maxError and Izone are similar, but scaled for different
-   * purposes. The maxError is generated for simplifying math, since
-   * calculations against the max error are far more common than changing the I
-   * term or Izone.
-   */
+  //Internally maxError and Izone are similar, but scaled for different purposes.
+  //The maxError is generated for simplifying math,
+  //Since calculations against the max error are far more common than changing the I term or Izone.
+ 
   maxIOutput = maximum;
   if (I != 0)
   {
@@ -156,17 +138,15 @@ void PID::setMaxIOutput(double maximum)
   }
 }
 
-/**Specify a maximum input. If a single parameter is specified, the minimum is
- * set to (-maximum).
- * @param input
- */
+//Specify a maximum input. 
+//If a single parameter is specified, the minimum is set to (-maximum).
+
 void PID::setInputLimits(double input) { setInputLimits(-input, input); }
 
-/**
- * Specify a maximum input.
- * @param ,inimum possible input value
- * @param maximum possible input value
- */
+// Specify a maximum input
+// minimum possible input value
+// maximum possible input value
+ 
 void PID::setInputLimits(double minimum, double maximum)
 {
   if (maximum < minimum)
@@ -177,17 +157,15 @@ void PID::setInputLimits(double minimum, double maximum)
   minInput = minimum;
 }
 
-/**Specify a maximum output. If a single parameter is specified, the minimum is
- * set to (-maximum).
- * @param output
- */
+//Specify a maximum output. 
+//If a single parameter is specified, the minimum is set to (-maximum).
+
 void PID::setOutputLimits(double output) { setOutputLimits(-output, output); }
 
-/**
- * Specify a maximum output.
- * @param minimum possible output value
- * @param maximum possible output value
- */
+//Specify a maximum output.
+//minimum possible output value
+//maximum possible output value
+ 
 void PID::setOutputLimits(double minimum, double maximum)
 {
   if (maximum < minimum)
@@ -197,36 +175,31 @@ void PID::setOutputLimits(double minimum, double maximum)
   maxOutput = maximum;
   minOutput = minimum;
 
-  // Ensure the bounds of the I term are within the bounds of the allowable
-  // output swing
+  // Ensure the bounds of the I term are within the bounds of the allowable output swing
   if (maxIOutput == 0 || maxIOutput > (maximum - minimum))
   {
     setMaxIOutput(maximum - minimum);
   }
 }
 
-/** Set the operating direction of the PID controller
- * @param reversed Set true to reverse PID output
- */
+// Set the operating direction of the PID controller
+// reversed Set true to reverse PID output
+
 void PID::setReversed(bool reversed) { this->reversed = reversed; }
 
 void PID::setContinuous(bool continuous) { this->continuous = continuous; }
 
-//**********************************
 // Primary operating functions
-//**********************************
+// Set the target for the PID calculations
 
-/**Set the target for the PID calculations
- * @param setpoint
- */
 void PID::setSetpoint(double setpoint) { this->setpoint = setpoint; }
 
-/** Calculate the PID value needed to hit the target setpoint.
- * Automatically re-calculates the output at each call.
- * @param actual The monitored value
- * @param target The target value
- * @return calculated output value for driving the actual to the target
- */
+// Calculate the PID value needed to hit the target setpoint.
+// Automatically re-calculates the output at each call.
+// actual The monitored value
+// target The target value
+// @return calculated output value for driving the actual to the target
+
 double PID::getOutput(double actual, double setpoint)
 {
   double output;
@@ -246,8 +219,7 @@ double PID::getOutput(double actual, double setpoint)
   // Do the simple parts of the calculations
   double error = setpoint - actual;
 
-  // Calculate F output. Notice, this depends only on the setpoint, and not the
-  // error.
+  // Calculate F output. Notice, this depends only on the setpoint, and not the error.
   Foutput = F * setpoint;
 
   // Calculate P term
@@ -269,10 +241,10 @@ double PID::getOutput(double actual, double setpoint)
     }
   }
 
-  // If this is our first time running this we don't actually _have_ a
-  // previous input or output. For sensor, sanely assume it was exactly where it
-  // is now. For last output, we can assume it's the current time-independent
-  // outputs.
+  // If this is our first time running this we don't actually _have_ a previous input or output. 
+  // For sensor, sanely assume it was exactly where it is now. 
+  // For last output, we can assume it's the current time-independent outputs.
+  
   if (firstRun)
   {
     lastActual = actual;
@@ -282,17 +254,14 @@ double PID::getOutput(double actual, double setpoint)
 
   // Calculate D Term
   // Note, this is negative. this actually "slows" the system if it's doing
-  // the correct thing, and small values helps prevent output spikes and
-  // overshoot
+  // the correct thing, and small values helps prevent output spikes and overshoot
 
   Doutput = -D * (actual - lastActual);
   lastActual = actual;
 
-  // The Iterm is more complex. There's several things to factor in to make it
-  // easier to deal with.
+  // The Iterm is more complex. There's several things to factor in to make it easier to deal with.
   // 1. maxIoutput restricts the amount of output contributed by the Iterm.
-  // 2. prevent windup by not increasing errorSum if we're already running
-  // against our max Ioutput
+  // 2. prevent windup by not increasing errorSum if we're already running against our max Ioutput
   // 3. prevent windup by not increasing errorSum if output is output=maxOutput
   Ioutput = I * errorSum;
   if (maxIOutput != 0)
@@ -347,50 +316,44 @@ double PID::getOutput(double actual, double setpoint)
   return output;
 }
 
-/**
- * Calculates the PID value using the last provided setpoint and actual valuess
- * @return calculated output value for driving the actual to the target
- */
+// Calculates the PID value using the last provided setpoint and actual valuess
+// @return calculated output value for driving the actual to the target
+
 double PID::getOutput() { return getOutput(lastActual, setpoint); }
 
-/**
- *
- * @param actual
- * @return calculated output value for driving the actual to the target
- */
+// actual
+// @return calculated output value for driving the actual to the target
+
 double PID::getOutput(double actual) { return getOutput(actual, setpoint); }
 
-/**
- * Resets the controller. this erases the I term buildup, and removes D gain on
- * the next loop.
- */
+// Resets the controller. this erases the I term buildup, and removes D gain on the next loop.
+
 void PID::reset()
 {
   firstRun = true;
   errorSum = 0;
 }
 
-/**Set the maximum rate the output can increase per cycle.
- * @param rate
- */
+// Set the maximum rate the output can increase per cycle.
+
 void PID::setOutputRampRate(double rate) { outputRampRate = rate; }
 
-/** Set a limit on how far the setpoint can be from the current position
- * <br>Can simplify tuning by helping tuning over a small range applies to a
- * much larger range. <br>this limits the reactivity of P term, and restricts
- * impact of large D term during large setpoint adjustments. Increases lag and I
- * term if range is too small.
- * @param range
- */
+// Set a limit on how far the setpoint can be from the current position
+// Can simplify tuning by helping tuning over a small range applies to a much larger range. 
+// This limits the reactivity of P term, 
+// And restricts impact of large D term during large setpoint adjustments. 
+// Increases lag and I term if range is too small.
+
 void PID::setSetpointRange(double range) { setpointRange = range; }
 
-/**Set a filter on the output to reduce sharp oscillations. <br>
- * 0.1 is likely a sane starting value. Larger values P and D oscillations, but
- * force larger I values. Uses an exponential rolling sum filter, according to a
- * simple <br> <pre>output*(1-strength)*sum(0..n){output*strength^n}</pre>
- * @param output valid between [0..1), meaning [current output only.. historical
- * output only)
- */
+// Set a filter on the output to reduce sharp oscillations.
+// 0.1 is likely a sane starting value. Larger values P and D oscillations, 
+// But force larger I values. 
+// Uses an exponential rolling sum filter, 
+// According to a simple <pre>output*(1-strength)*sum(0..n){output*strength^n}</pre>
+// output valid between [0..1), 
+// meaning [current output only.. historical output only)
+
 void PID::setOutputFilter(double strength)
 {
   if (strength == 0 || bounded(strength, 0, 1))
@@ -399,17 +362,14 @@ void PID::setOutputFilter(double strength)
   }
 }
 
-//**************************************
 // Helper functions
-//**************************************
 
-/**
- * Forces a value into a specific range
- * @param value input value
- * @param min maximum returned value
- * @param max mum value in range
- * @return Value if it's within provided range, min or max otherwise
- */
+// Forces a value into a specific range
+// value input value
+// maximum returned value
+alue in range
+ // return Value if it's within provided range, min or max otherwise
+
 double PID::clamp(double value, double min, double max)
 {
   if (value > max)
@@ -423,22 +383,20 @@ double PID::clamp(double value, double min, double max)
   return value;
 }
 
-/**
- * Test if the value is within the min and max, inclusive
- * @param value to test
- * @param min mum value of range
- * @param max Maximum value of range
- * @return
- */
+// Test it the value is within the min and max, inclusive
+// value to test
+// min mum value of range
+// max Maximum value of range
+// @return
+
 bool PID::bounded(double value, double min, double max)
 {
   return (min < value) && (value < max);
 }
 
-/**
- * To operate correctly, all PID parameters require the same sign,
- * with that sign depending on the {@literal}reversed value
- */
+// To operate correctly, all PID parameters require the same sign,
+// with that sign depending on the {@literal}reversed value
+
 void PID::checkSigns()
 {
   if (reversed)
