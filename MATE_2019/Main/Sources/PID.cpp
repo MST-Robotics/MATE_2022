@@ -40,7 +40,6 @@ void PID::init()
   setpointRange = 0;
 }
 
-
 // Configuration functions
 
 // Configure the Proportional gain parameter. 
