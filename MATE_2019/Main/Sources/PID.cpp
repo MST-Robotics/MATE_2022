@@ -343,7 +343,7 @@ void PID::setSetpointRange(double range) { setpointRange = range; }
 // But force larger I values. 
 // Uses an exponential rolling sum filter, 
 // According to a simple <pre>output*(1-strength)*sum(0..n){output*strength^n}</pre>
-// output valid between [0..1), 
+// Output is valid between [0..1), 
 // meaning [current output only.. historical output only)
 
 void PID::setOutputFilter(double strength)
@@ -376,10 +376,9 @@ double PID::clamp(double value, double min, double max)
 }
 
 // Test it the value is within the min and max, inclusive
-// value to test
-// min mum value of range
-// max Maximum value of range
-// @return
+// Value to test
+// Minimum value of range
+// Maximum value of range
 
 bool PID::bounded(double value, double min, double max)
 {
