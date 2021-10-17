@@ -2,14 +2,7 @@
 
 // Constructor functions
 
-PID::PID(double p, double i, double d)
-{
-  init();
-  P = p;
-  I = i;
-  D = d;
-}
-PID::PID(double p, double i, double d, double f)
+PID::PID(double p, double i=0, double d=0, double f=0)
 {
   init();
   P = p;
