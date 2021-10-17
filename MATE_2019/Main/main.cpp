@@ -130,9 +130,10 @@ void teleop(int controlMethod) // Added integer argument for control method (0 i
     // 1st letter: Up/Down
     // 2nd letter: Front/Back (of the ROV)
     // 3rd letter: Left/Right (side)
-    double UL = -(gamepad1.rightTrigger() - gamepad1.leftTrigger()); // Left propulsion
-    double UR = -(gamepad1.rightTrigger() - gamepad1.leftTrigger()); // Right propulsion
-    double UB = -(gamepad1.rightTrigger() - gamepad1.leftTrigger()) * 0.4; // Upwards propulsion
+    double DFL = -(gamepad1.rightTrigger() - gamepad1.leftTrigger()); // Down Front Left
+    double DFR = -(gamepad1.rightTrigger() - gamepad1.leftTrigger()); // Down Front Right
+    double DBL = -(gamepad1.rightTrigger() - gamepad1.leftTrigger()); // Down Back Left
+    double DBR = -(gamepad1.rightTrigger() - gamepad1.leftTrigger()); // Down Back Right
 
     double FL = (-STR * cos(heading) + FWD * cos(heading) - RCW);    // Front left motor
     double BL = (-STR * sin(heading) + FWD * cos(heading) - RCW);  // Back left motor
