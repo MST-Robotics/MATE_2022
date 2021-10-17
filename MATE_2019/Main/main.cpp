@@ -136,7 +136,7 @@ void teleop(int controlMethod) // Added integer argument for control method (0 i
     double DBL = -(gamepad1.rightTrigger() - gamepad1.leftTrigger()); // Down Back Left motor
     double DBR = -(gamepad1.rightTrigger() - gamepad1.leftTrigger()); // Down Back Right motor
  
-    double* vals[] = {&UL, &UR, &UB, &FL, &BL, &FR, &BR}; // Ordered according to declaration/command string
+    double* vals[] = {&UFL, &UFR, &UBL, &UBR, &DFL, &DFR, &DBL, &DBR}; // Ordered according to declaration/command string
   
     double max = 1.0;
 
