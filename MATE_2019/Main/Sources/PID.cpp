@@ -94,7 +94,7 @@ void PID::setF(double f)
 // p, Proportional gain. Large if large difference between setpoint and target.
 // i is for Integral gain.	Becomes large if setpoint cannot reach target quickly.
 // d is for Derivative gain. Responds quickly to large changes in error. 
-// Small values prevents P and I terms from causing overshoot.
+// Small values prevent P and I terms from causing overshoot.
 
 void PID::setPID(double p, double i, double d)
 {
@@ -175,7 +175,7 @@ void PID::setOutputLimits(double minimum, double maximum)
 }
 
 // Set the operating direction of the PID controller
-// reversed Set true to reverse PID output
+// reversed: Set true to reverse PID output
 
 void PID::setReversed(bool reversed) { this->reversed = reversed; }
 
@@ -188,8 +188,8 @@ void PID::setSetpoint(double setpoint) { this->setpoint = setpoint; }
 
 // Calculate the PID value needed to hit the target setpoint.
 // Automatically re-calculates the output at each call.
-// actual The monitored value
-// target The target value
+// actual: The monitored value
+// target: The target value
 // @return calculated output value for driving the actual to the target
 
 double PID::getOutput(double actual, double setpoint)
@@ -246,7 +246,7 @@ double PID::getOutput(double actual, double setpoint)
 
   // Calculate D Term
   // Note, this is negative. this actually "slows" the system if it's doing
-  // the correct thing, and small values helps prevent output spikes and overshoot
+  // The correct thing, and small values helps prevent output spikes and overshoot
 
   Doutput = -D * (actual - lastActual);
   lastActual = actual;
@@ -268,9 +268,9 @@ double PID::getOutput(double actual, double setpoint)
   if (minOutput != maxOutput && !bounded(output, minOutput, maxOutput))
   {
     errorSum = error;
-    // reset the error sum to a sane level
+    // Reset the error sum to a sane level
     // Setting to current error ensures a smooth transition when the P term
-    // decreases enough for the I term to start acting upon the controller
+    // Decreases enough for the I term to start acting upon the controller
     // From that point the I term will build up as would be expected
   }
   else if (outputRampRate != 0 && !bounded(output, lastOutput - outputRampRate,
@@ -281,8 +281,8 @@ double PID::getOutput(double actual, double setpoint)
   else if (maxIOutput != 0)
   {
     errorSum = clamp(errorSum + error, -maxError, maxError);
-    // In addition to output limiting directly, we also want to prevent I term
-    // buildup, so restrict the error directly
+    // In addition to output limiting directly, we also want to prevent I term buildup
+    // SAo restrict the error directly
   }
   else
   {
@@ -308,17 +308,17 @@ double PID::getOutput(double actual, double setpoint)
   return output;
 }
 
-// Calculates the PID value using the last provided setpoint and actual valuess
+// Calculates the PID value using the last provided setpoint and actual values
 // @return calculated output value for driving the actual to the target
 
 double PID::getOutput() { return getOutput(lastActual, setpoint); }
 
-// actual
 // @return calculated output value for driving the actual to the target
 
 double PID::getOutput(double actual) { return getOutput(actual, setpoint); }
 
-// Resets the controller. this erases the I term buildup, and removes D gain on the next loop.
+// Resets the controller
+// This erases the I term buildup and removes D gain on the next loop.
 
 void PID::reset()
 {
