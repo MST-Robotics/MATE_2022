@@ -126,15 +126,15 @@ void teleop(int controlMethod) // Added integer argument for control method (0 i
     // 1st letter: Up/Down
     // 2nd letter: Front/Back (of the ROV)
     // 3rd letter: Left/Right (side)
-    double DFL = -(gamepad1.rightTrigger() - gamepad1.leftTrigger()); // Down Front Left motor
-    double DFR = -(gamepad1.rightTrigger() - gamepad1.leftTrigger()); // Down Front Right motor
-    double DBL = -(gamepad1.rightTrigger() - gamepad1.leftTrigger()); // Down Back Left motor
-    double DBR = -(gamepad1.rightTrigger() - gamepad1.leftTrigger()); // Down Back Right motor
-
     double UFL = (-STR * cos(heading) + FWD * cos(heading) - RCW);    // Up Front Left motor
     double UFR = (-STR * sin(heading) - FWD * sin(heading) + RCW);    // Up Front Right motor
     double UBL = (-STR * sin(heading) + FWD * cos(heading) - RCW);    // Up Back Left motor
     double UBR = (STR * cos(heading) + FWD * sin(heading) - RCW);     // Up Back Right motor
+    
+    double DFL = -(gamepad1.rightTrigger() - gamepad1.leftTrigger()); // Down Front Left motor
+    double DFR = -(gamepad1.rightTrigger() - gamepad1.leftTrigger()); // Down Front Right motor
+    double DBL = -(gamepad1.rightTrigger() - gamepad1.leftTrigger()); // Down Back Left motor
+    double DBR = -(gamepad1.rightTrigger() - gamepad1.leftTrigger()); // Down Back Right motor
  
     double* vals[] = {&UL, &UR, &UB, &FL, &BL, &FR, &BR}; // Ordered according to declaration/command string
   
