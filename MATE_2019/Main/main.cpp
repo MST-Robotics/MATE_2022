@@ -124,6 +124,12 @@ void teleop(int controlMethod) // Added integer argument for control method (0 i
     // FR AND FL ARE SWAPPED
     // BR IS INVERTED?
     // WORKING VALUES 2/13/2020 W/ EXTENSION CORDS
+    
+    // New name scheme for motors on the ROV:
+    // Each motor will have a three letter name based on their position,
+    // 1st letter: Up/Down
+    // 2nd letter: Front/Back (of the ROV)
+    // 3rd letter: Left/Right (side)
     double UL = -(gamepad1.rightTrigger() - gamepad1.leftTrigger()); // Left propulsion
     double UR = -(gamepad1.rightTrigger() - gamepad1.leftTrigger()); // Right propulsion
     double UB = -(gamepad1.rightTrigger() - gamepad1.leftTrigger()) * 0.4; // Upwards propulsion
