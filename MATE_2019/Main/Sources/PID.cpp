@@ -109,6 +109,8 @@ if ((X_pixel_displacement) && (Y_pixel_displacement) == 0)
     5) if all motors are on at the same speed, how does titain move?
           * if all the upper motors are on does titain go up?
           * if all the left motors are on does titain go left?
+    6) if each motor is spinning at 1m/s how fast is Titain going?
+    
     
  
  
