@@ -12,8 +12,6 @@ movement_speed = 0         // how fast the motors move our robot (Titanic) this 
                               (ex, if movement speed is 2m/s each motor speed is ... ) motor speed is just how fast the motors will spin. 
                               not how fast the robot will move
 
-X_pixel_displacement = 0
-Y_pixel_displacement = 0
 
 // If there is no displacement, then theres some movement speed, and all of the motors are on. The motors are on because we want to keep moving towards the target
 
