@@ -6,6 +6,8 @@ may not be using the correct variables. I'll make it easy to explain what I mean
 
 // initializing variables
 
+need to put some limit on the motor speed, make max speed limit thing for the motors 
+
 X_pixel_displacement = 0    // the difference between camera view and target object.
 Y_pixel_displacement = 0       (ex, if looking at a box, if the whole box is not in the center of the view, then there is pixel displacement)  
 movement_speed = 0         // how fast the motors move our robot (Titanic) this should be proportional to the motor speed.
