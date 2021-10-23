@@ -37,13 +37,79 @@ if ((X_pixel_displacement) && (Y_pixel_displacement) == 0)
  // The camera code comes out tomorrow, but we can do something Axis based.
  // X - horizontal (left and right). A negative X displacement means that the camrea is looking too much to the left of the target
  // Y - vertical (up and down). A negative Y displacement means that the camera is looking somewhere lower than the target
+ // I assume that if a motor is on, it will pull Titain in that direction, so if it is off, Titain will go the opposite direction
  
- if (X_pixel_displacement > 0)       // deal with X situation (either too much to the right or left)
- {
+ if (X_pixel_displacement != 0)       // deal with X situation (either too much to the right or left)
+ { 
+  if (X_pixel_displacement > 0)       // if the camera is too much to the right
+    {
+      movement_speed == k*(some speed??)
+      UFL == (some speed??)
+      UFR == 0                            // turn off (or make it a lower number than the others) 
+      UBL == (some speed??)
+      UBR == (some speed??)
   
+      DFL == (some speed??)
+      DFR == 0                            // turn off
+      DBL == (some speed??)
+      DBR == (some speed??)
+    }
+  elif (X_pixel_displacement < 0)     // else if the camera is too much to the left
+    {
+      movement_speed == k*(some speed??)
+      UFL == 0
+      UFR == (some speed??)
+      UBL == (some speed??)
+      UBR == (some speed??)
+  
+      DFL == 0
+      DFR == (some speed??)
+      DBL == (some speed??)
+      DBR == (some speed??)
+   }
+ }  
+ 
+  if (Y_pixel_displacement != 0)       // deal with Y situation (either too far up or down)
+ { 
+  if (Y_pixel_displacement > 0)       // if the camera is too far up
+    {
+      movement_speed == k*(some speed??)
+      UFL == 0 
+      UFR == 0
+      UBL == 0
+      UBR == 0
+  
+      DFL == (some speed??)
+      DFR == (some speed??)
+      DBL == (some speed??)
+      DBR == (some speed??)
+    }
+  elif (Y_pixel_displacement < 0)     // else if the camera is too far down
+    {
+      movement_speed == k*(some speed??)
+      UFL == (some speed??)
+      UFR == (some speed??)
+      UBL == (some speed??)
+      UBR == (some speed??)
+  
+      DFL == 0
+      DFR == 0
+      DBL == 0
+      DBR == 0
+   }
+ } 
  
  
- 
+ // what i need to figure out is
+    1) what constant k should be multiplied, based on how far off the pixels are
+    2) how the motors really affect the movement
+    3) if all motors are on, should they each have different speeds?
+          * how much should we decrese a motor's speed?
+    4) should k be a variable that provides more information from camrea feedback?
+    5) if all motors are on at the same speed, how does titain move?
+          * if all the upper motors are on does titain go up?
+          * if all the left motors are on does titain go left?
+    
  
  
  
