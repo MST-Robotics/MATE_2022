@@ -110,6 +110,7 @@ if ((X_pixel_displacement) && (Y_pixel_displacement) == 0)
           * if all the upper motors are on does titain go up?
           * if all the left motors are on does titain go left?
     6) if each motor is spinning at 1m/s how fast is Titain going?
+    7) what would we do if the camrea was not on the target at all? pixel displacement = infinity 
     
     
  
