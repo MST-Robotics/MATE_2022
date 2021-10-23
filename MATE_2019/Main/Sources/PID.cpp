@@ -6,27 +6,41 @@ may not be using the correct variables. I'll make it easy to explain what I mean
 
 // initializing variables
 
-pixel_displacement = 0     // the difference between camera view and target object.
-                              (ex, if looking at a box, if the whole box is not in view, then there is pixel displacement) 
-movement_speed = 0         // how fast the motors move our robot (Titanic)
+X_pixel_displacement = 0    // the difference between camera view and target object.
+Y_pixel_displacement = 0       (ex, if looking at a box, if the whole box is not in view, then there is pixel displacement)  
+movement_speed = 0         // how fast the motors move our robot (Titanic) this should be proportional to the motor speed.
+                              (ex, if movement speed is 2m/s each motor speed is ... ) motor speed is just how fast the motors will spin. 
+                              not how fast the robot will move
 
-// If there is no displacement, then theres no movement speed, and all of the motors are off.
-if (pixel_displacement == 0)
+X_pixel_displacement = 0
+Y_pixel_displacement = 0
+
+// If there is no displacement, then theres no movement speed, and all of the motors are on. The motors are on because we want to keep moving towards the target
+
+if ((X_pixel_displacement) && (Y_pixel_displacement) == 0)
 {
-  movement_speed == 0
-  UFL == 0               // Up Front Left Motor
-  UFR == 0               // Up Front Right Motor
-  UBL == 0               // Up Back Left Motor
-  UBR == 0               // Up Back Right Motor
+  movement_speed == k*(some speed??)  // k is some constant we have determined (wont be a variavle) that will tell us the ratio of motor speed to movement speed
+  UFL == (some speed??)               // Up Front Left Motor
+  UFR == (some speed??)               // Up Front Right Motor
+  UBL == (some speed??)               // Up Back Left Motor
+  UBR == (some speed??)               // Up Back Right Motor
   
-  DFL == 0               // Down Front Left Motor
-  DFR == 0               // Down Front Right Motor
-  DBL == 0               // Down Back Left motor
-  DBR == 0               // Down Back Right motor
+  DFL == (some speed??)               // Down Front Left Motor
+  DFR == (some speed??)               // Down Front Right Motor
+  DBL == (some speed??)               // Down Back Left motor
+  DBR == (some speed??)               // Down Back Right motor
  }
  
  
  
+ // so now how do we tell if the pixel displacement if left, right, up , or down?
+ // The camera code comes out tomorrow, but we can do something Axis based.
+ // X - horizontal (left and right). A negative X displacement means that the camrea is looking too much to the left of the target
+ // Y - vertical (up and down). A negative Y displacement means that the camera is looking somewhere lower than the target
+ 
+ if (X_pixel_displacement > 0)       // deal with X situation (either too much to the right or left)
+ {
+  
  
  
  
