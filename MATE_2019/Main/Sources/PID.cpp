@@ -111,6 +111,7 @@ if ((X_pixel_displacement) && (Y_pixel_displacement) == 0)
     7) what would we do if the camrea was not on the target at all? pixel displacement = infinity 
     8) Titanic's movement depends on the motor speeds, are we constantly changing the motor speeds
        to keep a constant movement speed?
+    9) if pixel displacement does reach 0 how fast can the motors increase or decrease speed?
     
     
  
