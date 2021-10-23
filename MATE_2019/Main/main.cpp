@@ -16,6 +16,7 @@ int pitch = 0;  // Heading up and down
 int roll = 0;   // Angle side to side relative to ground
 int yawOffset = 0;
 
+// IMU Autocorrect
 double pitchSetpoint = 0.0;
 double rollSetpoint = 0.0;
 
