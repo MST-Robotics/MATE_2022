@@ -1,4 +1,62 @@
 /*
+
+// Getting this information from the camera, I cant find a code for the camera so I
+may not be using the correct variables. I'll make it easy to explain what I mean.
+
+
+// initializing variables
+
+pixel_displacement = 0     // the difference between camera view and target object.
+                              (ex, if looking at a box, if the whole box is not in view, then there is pixel displacement) 
+movement_speed = 0         // how fast the motors move our robot (Titanic)
+
+// If there is no displacement, then theres no movement speed, and all of the motors are off.
+if (pixel_displacement == 0)
+{
+  movement_speed == 0
+  UFL == 0               // Up Front Left Motor
+  UFR == 0               // Up Front Right Motor
+  UBL == 0               // Up Back Left Motor
+  UBR == 0               // Up Back Right Motor
+  
+  DFL == 0               // Down Front Left Motor
+  DFR == 0               // Down Front Right Motor
+  DBL == 0               // Down Back Left motor
+  DBR == 0               // Down Back Right motor
+ }
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+These are just my messy thoughts because who likes notebooks?
+
 Autonamous section (Eden)
 Will be based on the camera and camera feedback
 For visual corrections to position and trajectory
