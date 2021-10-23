@@ -7,7 +7,7 @@ may not be using the correct variables. I'll make it easy to explain what I mean
 // initializing variables
 
 X_pixel_displacement = 0    // the difference between camera view and target object.
-Y_pixel_displacement = 0       (ex, if looking at a box, if the whole box is not in view, then there is pixel displacement)  
+Y_pixel_displacement = 0       (ex, if looking at a box, if the whole box is not in the center of the view, then there is pixel displacement)  
 movement_speed = 0         // how fast the motors move our robot (Titanic) this should be proportional to the motor speed.
                               (ex, if movement speed is 2m/s each motor speed is ... ) motor speed is just how fast the motors will spin. 
                               not how fast the robot will move
