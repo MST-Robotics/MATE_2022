@@ -21,10 +21,10 @@
 FPS::FPS()
 {
     // Initialize member variables.
-    m_nIterations = 0;
-    m_pStartTime = time(0);
-    m_nTick = 0;
-    m_nFPS = 0;
+    iterations = 0;
+    startTime = time(0);
+    tick = 0;
+    FPSCount = 0;
 }
 
 /****************************************************************************
@@ -48,7 +48,7 @@ FPS::~FPS()
 ****************************************************************************/
 void FPS::Increment()
 {
-    m_nIterations++;
+    iterations++;
 }
 
 /****************************************************************************
@@ -61,17 +61,17 @@ void FPS::Increment()
 int FPS::FramesPerSec()
 {
     // Create instance variables.
-    time_t m_pTimeNow = time(0) - m_pStartTime;
+    time_t timeNow = time(0) - startTime;
 
     // Calculate FPS.
-    if (m_pTimeNow - m_nTick >= 1)
+    if (timeNow - tick >= 1)
     {
-        m_nTick++;
-        m_nFPS = m_nIterations;
-        m_nIterations = 0;
+        tick++;
+        FPSCount = iterations;
+        iterations = 0;
     }
 
     // Return FPS value.
-    return m_nFPS;
+    return FPSCount;
 }
 ///////////////////////////////////////////////////////////////////////////////

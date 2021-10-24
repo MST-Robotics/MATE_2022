@@ -25,10 +25,10 @@ public:
 
 private:
     // Declare class variables.
-	time_t					m_pStartTime;
-	int						m_nIterations;
-	int						m_nTick;
-	int						m_nFPS;
+	time_t					startTime;
+	int						iterations;
+	int						tick;
+	int						FPSCount;
 };
 ///////////////////////////////////////////////////////////////////////////////
 #endif

@@ -21,36 +21,30 @@
 VideoProcess::VideoProcess()
 {
     // Create object pointers.
-    m_pFPS									= new FPS();
+    FPSCounter									    = new FPS();
     
     // Initialize member variables.
-    m_pKernel								= getStructuringElement(MORPH_ELLIPSE, Size(3, 3));
-    m_nFPS									= 0;
-    m_nNumberOfPolyCorners					= 8;
-    m_nMinimumNumberOfTapeVertices			= 4;
-    m_nMinimumPowerCellRadius				= 1;
-    m_nMaxContours							= 4;
-    m_nGreenBlurRadius						= 3;
-    m_nOrangeBlurRadius						= 3;
-    m_nHorizontalAspect						= 4;
-    m_nVerticalAspect						= 3;
-    m_dPipeLargestContourArea				= 2000;
-    m_dCameraFOV							= 75;
-    m_nScreenWidth							= 640;
-    m_nScreenHeight							= 480;
-    m_dFocalLength							= (m_nScreenWidth / 2.0) / tan((m_dCameraFOV * PI / 180.0) / 2.0);
-    m_bIsStopping							= false;
-    m_bIsStopped							= false;
+    kernel								    = getStructuringElement(MORPH_ELLIPSE, Size(3, 3));
+    FPSCount								= 0;
+    greenBlurRadius						    = 3;
+    horizontalAspect						= 4;
+    verticalAspect						    = 3;
+    cameraFOV							    = 75;
+    screenWidth							    = 640;
+    screenHeight							= 480;
+    focalLength							    = (screenWidth / 2.0) / tan((cameraFOV * PI / 180.0) / 2.0);
+    isStopping							    = false;
+    isStopped							    = false;
 
     ////
     // Setup SolvePNP data.
     ////
 
     // Reference object points.
-    m_pObjectPoints.emplace_back(Point3f(39.50, 0.0, 0.0));
-    m_pObjectPoints.emplace_back(Point3f(29.50, -17.0, 0.0));
-    m_pObjectPoints.emplace_back(Point3f(9.75, -17.0, 0.0));
-    m_pObjectPoints.emplace_back(Point3f(0.0, 0.0, 0.0));
+    objectPoints.emplace_back(Point3f(39.50, 0.0, 0.0));
+    objectPoints.emplace_back(Point3f(29.50, -17.0, 0.0));
+    objectPoints.emplace_back(Point3f(9.75, -17.0, 0.0));
+    objectPoints.emplace_back(Point3f(0.0, 0.0, 0.0));
 
     // Precalibrated camera matrix values.
     double mtx[3][3] = {{516.5613698781304, 0.0, 320.38297194779585},		//// PSEye Cam
@@ -59,12 +53,12 @@ VideoProcess::VideoProcess()
     // double mtx[3][3] = {{659.3851992714341, 0.0, 306.98918779442675},		//// Lifecam
     // 					{0.0, 659.212123568372, 232.07157473243464},
     // 					{0.0, 0.0, 1.0}};
-    m_pCameraMatrix = Mat(3, 3, CV_64FC1, mtx).clone();
+    cameraMatrix = Mat(3, 3, CV_64FC1, mtx).clone();
 
     // Precalibration distance/distortion values.
     double dist[5] = {-0.0841024904469607, 0.014864043816324026, -0.00013887041018197853, -0.0014661216967276468, 0.5671907234987197};	//// PSEye Cam
     // double dist[5] = {0.1715327237204972, -1.3255106761114646, 7.713495040297368e-07, -0.0035865453000784634, 2.599132082766894};	//// Lifecam
-    m_pDistanceCoefficients = Mat(1, 5, CV_64FC1, dist).clone();
+    distanceCoefficients = Mat(1, 5, CV_64FC1, dist).clone();
 }
 
 /****************************************************************************
@@ -77,10 +71,10 @@ VideoProcess::VideoProcess()
 VideoProcess::~VideoProcess()
 {
     // Delete object pointers.
-    delete m_pFPS;
+    delete FPSCounter;
 
     // Set object pointers as nullptrs.
-    m_pFPS = nullptr;
+    FPSCounter = nullptr;
 }
 
 /****************************************************************************
@@ -90,7 +84,7 @@ VideoProcess::~VideoProcess()
 
         Returns: 		Nothing
 ****************************************************************************/
-void VideoProcess::Process(Mat &m_pFrame, Mat &m_pFinalImg, int &m_nTargetCenterX, int &m_nTargetCenterY, double &m_dContrastValue, double &m_dTargetAngle, bool &m_bTuningMode, bool &m_bDrivingMode, bool &m_bTrackingMode, bool &m_bSolvePNPEnabled, vector<int> &m_vTrackbarValues, vector<double> &m_vSolvePNPValues, VideoGet &pVideoGetter, shared_timed_mutex &m_pMutexGet, shared_timed_mutex &m_pMutexShow)
+void VideoProcess::Process(Mat &frame, Mat &finalImg, int &targetCenterX, int &targetCenterY, double &contrastValue, double &targetAngle, bool &tuningMode, bool &drivingMode, bool &trackingMode, bool &solvePNPEnabled, vector<int> &trackbarValues, vector<double> &solvePNPValues, VideoGet &VideoGetter, shared_timed_mutex &MutexGet, shared_timed_mutex &MutexShow)
 {
     // Give other threads enough time to start before processing camera frames.
     this_thread::sleep_for(std::chrono::milliseconds(800));
@@ -98,50 +92,50 @@ void VideoProcess::Process(Mat &m_pFrame, Mat &m_pFinalImg, int &m_nTargetCenter
     while (1)
     {
         // Increment FPS counter.
-        m_pFPS->Increment();
+        FPSCounter->Increment();
 
         // Make sure frame is not corrupt.
         try
         {
             // Acquire resource lock for read thread. NOTE: This line has been commented out to improve processing speed. VideoGet takes to long with the resources.
-            // shared_lock<shared_timed_mutex> guard(m_pMutexGet);
+            // shared_lock<shared_timed_mutex> guard(MutexGet);
 
-            if (!m_pFrame.empty())
+            if (!frame.empty())
             {
                 // Convert image from RGB to HSV.
-                //cvtColor(m_pFrame, m_pHSVImg, COLOR_BGR2HSV);
-                // Acquire resource lock for show thread only after m_pFrame has been used.
-                unique_lock<shared_timed_mutex> guard(m_pMutexShow);
+                //cvtColor(frame, HSVImg, COLOR_BGR2HSV);
+                // Acquire resource lock for show thread only after frame has been used.
+                unique_lock<shared_timed_mutex> guard(MutexShow);
                 // Copy frame to a new mat.
-                m_pFinalImg = m_pFrame.clone();
+                finalImg = frame.clone();
                 // Blur the image.
-                blur(m_pFrame, m_pBlurImg, Size(m_nGreenBlurRadius, m_nGreenBlurRadius));
+                blur(frame, blurImg, Size(greenBlurRadius, greenBlurRadius));
                 // Filter out specific color in image.
-                inRange(m_pBlurImg, Scalar(m_vTrackbarValues[0], m_vTrackbarValues[2], m_vTrackbarValues[4]), Scalar(m_vTrackbarValues[1], m_vTrackbarValues[3], m_vTrackbarValues[5]), m_pFilterImg);
+                inRange(blurImg, Scalar(trackbarValues[0], trackbarValues[2], trackbarValues[4]), Scalar(trackbarValues[1], trackbarValues[3], trackbarValues[5]), filterImg);
                 // Apply blur to image.
-                dilate(m_pFilterImg, m_pDilateImg, m_pKernel);
+                dilate(filterImg, dilateImg, kernel);
 
                 // Find countours of image.
-                findContours(m_pDilateImg, m_vContours, m_pHierarchy, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);		////RETR_TREE //// TRY CHAIN_APPROX_SIMPLE		//// Not sure what this method of detection does, but it worked before: CHAIN_APPROX_TC89_KCOS
+                findContours(dilateImg, contours, hierarchy, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);		////RETR_TREE //// TRY CHAIN_APPROX_SIMPLE		//// Not sure what this method of detection does, but it worked before: CHAIN_APPROX_TC89_KCOS
 
                 // Driving mode.
-                if (!m_bDrivingMode)
+                if (!drivingMode)
                 {
                     // Tracking mode. (Pipe or Tape)
-                    if (m_bTrackingMode)
+                    if (trackingMode)
                     {
                         /****************************************************
                         *			Track pipe target
                         *****************************************************/
 
                         // Draw all contours in white.
-                        // drawContours(m_pFinalImg, m_vContours, -1, Scalar(255, 255, 210), 1, LINE_4, m_pHierarchy);
+                        // drawContours(finalImg, contours, -1, Scalar(255, 255, 210), 1, LINE_4, hierarchy);
 
-                        if (m_vContours.size() >= 2)
+                        if (contours.size() >= 2)
                         {
                             // 'Round off' all contours with convexHull.
                             vector<vector<Point>> vHulls;
-                            for (vector<Point> vContour : m_vContours)
+                            for (vector<Point> vContour : contours)
                             {
                                 vector<Point> vHull;
                                 convexHull(vContour, vHull);
@@ -155,7 +149,7 @@ void VideoProcess::Process(Mat &m_pFrame, Mat &m_pFinalImg, int &m_nTargetCenter
                             vector<vector<Point>> vFilteredHulls;
                             for (vector<Point> vHull : vHulls)
                             {
-                                if (contourArea(vHull) >= m_dContrastValue)
+                                if (contourArea(vHull) >= contrastValue)
                                 {
                                     vFilteredHulls.emplace_back(vHull);
                                 }
@@ -164,7 +158,7 @@ void VideoProcess::Process(Mat &m_pFrame, Mat &m_pFinalImg, int &m_nTargetCenter
                             if (vFilteredHulls.size() > 2)
                             {
                                 // Draw convex hull contours.
-                                polylines(m_pFinalImg, vFilteredHulls, true, Scalar(255, 255, 210), 1);
+                                polylines(finalImg, vFilteredHulls, true, Scalar(255, 255, 210), 1);
 
                                 // Store the upper and lower extremes of each hull contour.
                                 vector<vector<int>> vHullExtremes;
@@ -195,7 +189,7 @@ void VideoProcess::Process(Mat &m_pFrame, Mat &m_pFinalImg, int &m_nTargetCenter
                                 // Remove the line we just found.
                                 vHullExtremes.erase(remove(vHullExtremes.begin(), vHullExtremes.end(), vTallestLine1));
                                 // Find the next tallest line segment.
-                                vector<int>vTallestLine2 = {m_nScreenWidth, 0, m_nScreenWidth, nMinLineLength};
+                                vector<int>vTallestLine2 = {screenWidth, 0, screenWidth, nMinLineLength};
                                 for (vector<int> vLine : vHullExtremes)
                                 {
                                     // Compare the y distance of the line to the currently stored biggest one.
@@ -217,14 +211,14 @@ void VideoProcess::Process(Mat &m_pFrame, Mat &m_pFinalImg, int &m_nTargetCenter
                                 }
 
                                 // Draw the two tallest line segments and the center line.
-                                line(m_pFinalImg, Point(vTallestLine2[0], vTallestLine2[1]), Point(vTallestLine2[2], vTallestLine2[3]), Scalar(255, 0, 0), 3, LINE_4, 0);
-                                line(m_pFinalImg, Point(vTallestLine1[0], vTallestLine1[1]), Point(vTallestLine1[2], vTallestLine1[3]), Scalar(255, 0, 0), 3, LINE_4, 0);
-                                line(m_pFinalImg, Point(vCenterLine[0], vCenterLine[1]), Point(vCenterLine[2], vCenterLine[3]), Scalar(0, 200, 0), 3, LINE_4, 0);
+                                line(finalImg, Point(vTallestLine2[0], vTallestLine2[1]), Point(vTallestLine2[2], vTallestLine2[3]), Scalar(255, 0, 0), 3, LINE_4, 0);
+                                line(finalImg, Point(vTallestLine1[0], vTallestLine1[1]), Point(vTallestLine1[2], vTallestLine1[3]), Scalar(255, 0, 0), 3, LINE_4, 0);
+                                line(finalImg, Point(vCenterLine[0], vCenterLine[1]), Point(vCenterLine[2], vCenterLine[3]), Scalar(0, 200, 0), 3, LINE_4, 0);
 
                                 // // Store/convert the vHulls contours into a Mat.
-                                // Mat mEdgeImg = Mat::zeros(m_pFinalImg.size(), CV_8UC1);
+                                // Mat mEdgeImg = Mat::zeros(finalImg.size(), CV_8UC1);
                                 // polylines(mEdgeImg, vHulls, true, Scalar(255, 255, 255), 8);
-                                // mEdgeImg.copyTo(m_pDilateImg);
+                                // mEdgeImg.copyTo(dilateImg);
                                 // // drawContours(mEdgeImg, vHulls, -1, Scalar(255, 255, 255), 1, LINE_4);
 
                                 // // Setup HoughLinesP function variables.
@@ -241,7 +235,7 @@ void VideoProcess::Process(Mat &m_pFrame, Mat &m_pFinalImg, int &m_nTargetCenter
                                 // for (Vec4i vLine : vLines)
                                 // {
                                 // 	// Draw line.
-                                // 	line(m_pFinalImg, Point(vLine[0], vLine[1]), Point(vLine[2], vLine[3]), Scalar(0, 0, 255), 4, LINE_4, 0);
+                                // 	line(finalImg, Point(vLine[0], vLine[1]), Point(vLine[2], vLine[3]), Scalar(0, 0, 255), 4, LINE_4, 0);
                                 // }
                                 
                                 // Sort array based on coordinates (leftmost to rightmost) to make sure contours are adjacent.
@@ -250,16 +244,16 @@ void VideoProcess::Process(Mat &m_pFrame, Mat &m_pFinalImg, int &m_nTargetCenter
                         }
 
                         // // Push position of tracked target.
-                        // m_nTargetCenterX = nTargetPositionX - (m_nScreenWidth / 2);
-                        // m_nTargetCenterY = -(nTargetPositionY - (m_nScreenHeight / 2));
+                        // targetCenterX = targetPositionX - (screenWidth / 2);
+                        // targetCenterY = -(targetPositionY - (screenHeight / 2));
 
                         // // Draw how many targets are detected on screen.
-                        // putText(m_pFinalImg, ("Targets Detected: " + to_string(vBiggestContours.size())), Point(10, m_pFinalImg.rows - 40), FONT_HERSHEY_DUPLEX, 0.65, Scalar(200, 200, 200), 1);
+                        // putText(finalImg, ("Targets Detected: " + to_string(vBiggestContours.size())), Point(10, finalImg.rows - 40), FONT_HERSHEY_DUPLEX, 0.65, Scalar(200, 200, 200), 1);
                         // // Draw target distance and target crosshairs with error line.
-                        // putText(m_pFinalImg, ("size:" + to_string(dBiggestContour)), Point(10, m_pFinalImg.rows - 100), FONT_HERSHEY_DUPLEX, 0.65, Scalar(200, 200, 200), 1);
-                        // line(m_pFinalImg, Point(nTargetPositionX, m_nScreenHeight), Point(nTargetPositionX, 0), Scalar(0, 0, 200), 1, LINE_4, 0);
-                        // line(m_pFinalImg, Point(0, nTargetPositionY), Point(m_nScreenWidth, nTargetPositionY), Scalar(0, 0, 200), 1, LINE_4, 0);
-                        // //line(m_pFinalImg, Point((m_nScreenWidth / 2), (m_nScreenHeight / 2)), Point(nTargetPositionX, nTargetPositionY), Scalar(200, 0, 0), 2, LINE_4, 0);
+                        // putText(finalImg, ("size:" + to_string(dBiggestContour)), Point(10, finalImg.rows - 100), FONT_HERSHEY_DUPLEX, 0.65, Scalar(200, 200, 200), 1);
+                        // line(finalImg, Point(targetPositionX, screenHeight), Point(targetPositionX, 0), Scalar(0, 0, 200), 1, LINE_4, 0);
+                        // line(finalImg, Point(0, targetPositionY), Point(screenWidth, targetPositionY), Scalar(0, 0, 200), 1, LINE_4, 0);
+                        // //line(finalImg, Point((screenWidth / 2), (screenHeight / 2)), Point(targetPositionX, targetPositionY), Scalar(200, 0, 0), 2, LINE_4, 0);
                     }
                     else
                     {
@@ -268,47 +262,47 @@ void VideoProcess::Process(Mat &m_pFrame, Mat &m_pFinalImg, int &m_nTargetCenter
                         // This is for tracking the chessboard.
                         // vector<Point2f> vImagePoints;
                         // vImagePoints.emplace_back(Point2f(0.0, 0.0));
-                        // int nTargetPositionX = 0; 
-                        // int nTargetPositionY = 0;
-                        // m_vSolvePNPValues = SolveObjectPose(vImagePoints, ref(m_pFinalImg), ref(m_pFrame), nTargetPositionX, nTargetPositionY);
+                        // int targetPositionX = 0; 
+                        // int targetPositionY = 0;
+                        // solvePNPValues = SolveObjectPose(vImagePoints, ref(finalImg), ref(frame), targetPositionX, targetPositionY);
                     }
                 }
 
                 // Put FPS on image.
-                m_nFPS = m_pFPS->FramesPerSec();
-                putText(m_pFinalImg, ("Camera FPS: " + to_string(pVideoGetter.GetFPS())), Point(420, m_pFinalImg.rows - 40), FONT_HERSHEY_DUPLEX, 0.65, Scalar(200, 200, 200), 1);
-                putText(m_pFinalImg, ("Processor FPS: " + to_string(m_nFPS)), Point(420, m_pFinalImg.rows - 20), FONT_HERSHEY_DUPLEX, 0.65, Scalar(200, 200, 200), 1);
+                FPSCount = FPSCounter->FramesPerSec();
+                putText(finalImg, ("Camera FPS: " + to_string(VideoGetter.GetFPS())), Point(420, finalImg.rows - 40), FONT_HERSHEY_DUPLEX, 0.65, Scalar(200, 200, 200), 1);
+                putText(finalImg, ("Processor FPS: " + to_string(FPSCount)), Point(420, finalImg.rows - 20), FONT_HERSHEY_DUPLEX, 0.65, Scalar(200, 200, 200), 1);
 
                 // If tuning mode is enabled, then output contrast or brightness images.
-                if (m_bTuningMode)
+                if (tuningMode)
                 {
-                    // m_pContrastImg.copyTo(m_pFinalImg);
-                    m_pDilateImg.copyTo(m_pFinalImg);
+                    // m_pContrastImg.copyTo(finalImg);
+                    dilateImg.copyTo(finalImg);
                 }
 
                 // Release garbage mats.
-                m_pHSVImg.release();
-                m_pBlurImg.release();
-                m_pFilterImg.release();
+                HSVImg.release();
+                blurImg.release();
+                filterImg.release();
             }
         }
         catch (const exception& e)
         {
             //SetIsStopping(true);
             // Print error to console and show that an error has occured on the screen.
-            putText(m_pFinalImg, "Image Processing ERROR", Point(280, m_pFinalImg.rows - 440), FONT_HERSHEY_DUPLEX, 0.65, Scalar(0, 0, 250), 1);
+            putText(finalImg, "Image Processing ERROR", Point(280, finalImg.rows - 440), FONT_HERSHEY_DUPLEX, 0.65, Scalar(0, 0, 250), 1);
             cout << "\nWARNING: MAT corrupt or a runtime error has occured! Frame has been dropped." << "\n" << e.what();
         }
 
         // If the program stops shutdown the thread.
-        if (m_bIsStopping)
+        if (isStopping)
         {
             break;
         }
     }
 
     // Clean-up.
-    m_bIsStopped = true;
+    isStopped = true;
 }
 
 /****************************************************************************
@@ -319,9 +313,9 @@ void VideoProcess::Process(Mat &m_pFrame, Mat &m_pFinalImg, int &m_nTargetCenter
 
         Returns: 		INT
 ****************************************************************************/
-int VideoProcess::SignNum(double dVal)
+int VideoProcess::SignNum(double val)
 {
-    return (double(0) < dVal) - (dVal < double(0));
+    return (double(0) < val) - (val < double(0));
 }
 
 /****************************************************************************
@@ -332,32 +326,29 @@ int VideoProcess::SignNum(double dVal)
 
         Returns: 		OUTPUT VECTOR (6 values)
 ****************************************************************************/
-vector<double> VideoProcess::SolveObjectPose(vector<Point2f> m_pImagePoints, Mat &m_pFinalImg, Mat &m_pFrame, int nTargetPositionX, int nTargetPositionY)
+vector<double> VideoProcess::SolveObjectPose(vector<Point2f> imagePoints, Mat &finalImg, Mat &frame, int targetPositionX, int targetPositionY)
 {
     // Create instance variables.
-    static int nCount = 0;
-    Vec3d					vEulerAngles;
-    vector<Point2f>			vPositionVector;
-    Mat						vMTXR;
-    Mat						vMTXQ;
-    Mat						vRotationVectors;
-    Mat						vRotationMatrix;
-    Mat						vTranslationVectors;
-    Mat						vTranslationMatrix;
-    Mat						vTRNSP;
-    Mat 					mNewCameraMatrix;
-    Mat						mUndistort;
-    Mat						mGray;
-    TermCriteria mTermCriteria(TermCriteria::COUNT + TermCriteria::EPS, 30, 0.001);
+    static int count = 0;
+    Vec3d					eulerAngles;
+    Mat						MTXR;
+    Mat						MTXQ;
+    Mat						rotationVectors;
+    Mat						rotationMatrix;
+    Mat						translationVectors;
+    Mat						translationMatrix;
+    Mat						TRNSP;
+    Mat						gray;
+    TermCriteria termCriteria(TermCriteria::COUNT + TermCriteria::EPS, 30, 0.001);
 
     // Create a vector that stores 0s by default. 
-    vector<double>	vObjectPosition;
-    vObjectPosition.emplace_back(1);
-    vObjectPosition.emplace_back(2);
-    vObjectPosition.emplace_back(3);
-    vObjectPosition.emplace_back(4);
-    vObjectPosition.emplace_back(5);
-    vObjectPosition.emplace_back(6);
+    vector<double>	objectPosition;
+    objectPosition.emplace_back(1);
+    objectPosition.emplace_back(2);
+    objectPosition.emplace_back(3);
+    objectPosition.emplace_back(4);
+    objectPosition.emplace_back(5);
+    objectPosition.emplace_back(6);
 
     // This is for tracking the chessboard.
     // vector<Point3f> chessboards;
@@ -374,27 +365,27 @@ vector<double> VideoProcess::SolveObjectPose(vector<Point2f> m_pImagePoints, Mat
     {
         // Refine the corners from image points.
         // vector<Point2f> corners;
-        cvtColor(m_pFinalImg, mGray, COLOR_BGR2GRAY);
-        // bool bFound = findChessboardCorners(mGray, Size(6, 9), corners);			// These have a possibility of being switched around.
-        cornerSubPix(mGray, m_pImagePoints, Size(11, 11), Size(-1, -1), mTermCriteria);
-        // drawChessboardCorners(m_pFinalImg, Size(6, 9), corners, bFound);			// These have a possibility of being switched around.
+        cvtColor(finalImg, gray, COLOR_BGR2GRAY);
+        // bool bFound = findChessboardCorners(gray, Size(6, 9), corners);			// These have a possibility of being switched around.
+        cornerSubPix(gray, imagePoints, Size(11, 11), Size(-1, -1), termCriteria);
+        // drawChessboardCorners(finalImg, Size(6, 9), corners, bFound);			// These have a possibility of being switched around.
 
         // Use real world reference points and image points to estimate object pose.
-        bool bSuccess = solvePnP(m_pObjectPoints,					// Object reference points in 3D space.			
-                                    m_pImagePoints,					// Object points from the 2D camera image.
-                                    m_pCameraMatrix,				// Precalibrated camera matrix. (camera specific)
-                                    m_pDistanceCoefficients,		// Precalibrated camera config. (camera specific)
-                                    vRotationVectors,				// Storage vector for rotation values.
-                                    vTranslationVectors,			// Storage vector for translation values.
+        bool success = solvePnP(objectPoints,					// Object reference points in 3D space.			
+                                    imagePoints,					// Object points from the 2D camera image.
+                                    cameraMatrix,				// Precalibrated camera matrix. (camera specific)
+                                    distanceCoefficients,		// Precalibrated camera config. (camera specific)
+                                    rotationVectors,				// Storage vector for rotation values.
+                                    translationVectors,			// Storage vector for translation values.
                                     false,							// Use the provided rvec and tvec values as initial approximations of the rotation and translation vectors, and further optimize them? (useExtrensicGuess)
                                     SOLVEPNP_ITERATIVE				// Method used for the PNP problem.
                                 );
-        // bool bSuccess = solvePnPRansac(m_pObjectPoints,						// Object reference points in 3D space.			
-        // 									m_pImagePoints,						// Object points from the 2D camera image.
-        // 									m_pCameraMatrix,				// Precalibrated camera matrix. (camera specific)
-        // 									m_pDistanceCoefficients,		// Precalibrated camera config. (camera specific)
-        // 									vRotationVectors,				// Storage vector for rotation values.
-        // 									vTranslationVectors,			// Storage vector for translation values.
+        // bool success = solvePnPRansac(objectPoints,						// Object reference points in 3D space.			
+        // 									imagePoints,						// Object points from the 2D camera image.
+        // 									cameraMatrix,				// Precalibrated camera matrix. (camera specific)
+        // 									distanceCoefficients,		// Precalibrated camera config. (camera specific)
+        // 									rotationVectors,				// Storage vector for rotation values.
+        // 									translationVectors,			// Storage vector for translation values.
         // 									false,							// Use the provided rvec and tvec values as initial approximations of the rotation and translation vectors, and further optimize them? (useExtrensicGuess)
         //  									100,							// Number of iterations. (adjust for performance?)
         //  									15.0,							// Inlier threshold value used by the RANSAC procedure. The parameter value is the maximum allowed distance between the observed and computed point projections to consider it an inlier.
@@ -404,67 +395,67 @@ vector<double> VideoProcess::SolveObjectPose(vector<Point2f> m_pImagePoints, Mat
         // 								);
 
         // If SolvePNP reports a success, then continue with calculations. Else, keep searching. 
-        if (bSuccess)
+        if (success)
         {
             // Convert the rotation matrix from the solvePNP function to a rotation vector, or vise versa.
-            Rodrigues(vRotationVectors, vRotationMatrix);
+            Rodrigues(rotationVectors, rotationMatrix);
 
             // Calculate the camera x, y, z translation.
-            transpose(vRotationMatrix, vTRNSP);
-            vTranslationMatrix = -vTRNSP * vTranslationVectors;
+            transpose(rotationMatrix, TRNSP);
+            translationMatrix = -TRNSP * translationVectors;
 
             // Calculate the pitch, roll, yaw angles of the camera.
-            vEulerAngles = RQDecomp3x3(vRotationMatrix, vMTXR, vMTXQ);
+            eulerAngles = RQDecomp3x3(rotationMatrix, MTXR, MTXQ);
 
             // Store the calculated object values in the vector.
-            vObjectPosition.at(0) = vTranslationMatrix.at<double>(0);
-            vObjectPosition.at(1) = vTranslationMatrix.at<double>(1);
-            vObjectPosition.at(2) = vTranslationMatrix.at<double>(2);
-            vObjectPosition.at(3) = vEulerAngles[0];
-            vObjectPosition.at(4) = vEulerAngles[1];
-            vObjectPosition.at(5) = vEulerAngles[2];
+            objectPosition.at(0) = translationMatrix.at<double>(0);
+            objectPosition.at(1) = translationMatrix.at<double>(1);
+            objectPosition.at(2) = translationMatrix.at<double>(2);
+            objectPosition.at(3) = eulerAngles[0];
+            objectPosition.at(4) = eulerAngles[1];
+            objectPosition.at(5) = eulerAngles[2];
 
             // Draw axis vectors.
-            drawFrameAxes(m_pFinalImg, m_pCameraMatrix, m_pDistanceCoefficients, vRotationVectors, vTranslationVectors, 20.0);
+            drawFrameAxes(finalImg, cameraMatrix, distanceCoefficients, rotationVectors, translationVectors, 20.0);
 
             // Print status onto image.
-            putText(m_pFinalImg, "PNP Status: found match!", Point(50, m_pFinalImg.rows - 440), FONT_HERSHEY_DUPLEX, 0.40, Scalar(0, 0, 250), 1);
+            putText(finalImg, "PNP Status: found match!", Point(50, finalImg.rows - 440), FONT_HERSHEY_DUPLEX, 0.40, Scalar(0, 0, 250), 1);
         }
         else
         {
             // If the object is not found, then put 0s in the vector.
-            vObjectPosition.emplace_back(0);
-            vObjectPosition.emplace_back(0);
-            vObjectPosition.emplace_back(0);
-            vObjectPosition.emplace_back(0);
-            vObjectPosition.emplace_back(0);
-            vObjectPosition.emplace_back(0);
+            objectPosition.emplace_back(0);
+            objectPosition.emplace_back(0);
+            objectPosition.emplace_back(0);
+            objectPosition.emplace_back(0);
+            objectPosition.emplace_back(0);
+            objectPosition.emplace_back(0);
 
             // Print status onto image.
-            putText(m_pFinalImg, "PNP Status: searching...", Point(50, m_pFinalImg.rows - 440), FONT_HERSHEY_DUPLEX, 0.40, Scalar(0, 0, 250), 1);
+            putText(finalImg, "PNP Status: searching...", Point(50, finalImg.rows - 440), FONT_HERSHEY_DUPLEX, 0.40, Scalar(0, 0, 250), 1);
         }
 
         // Reset toggle if the code ran successfully.
-        nCount = 0;
+        count = 0;
     }
     catch (const exception& e)
     {
         // Print status on screen.
-        putText(m_pFinalImg, "PNP Status: point data unsolvable...", Point(50, m_pFinalImg.rows - 440), FONT_HERSHEY_DUPLEX, 0.40, Scalar(0, 0, 250), 1);
+        putText(finalImg, "PNP Status: point data unsolvable...", Point(50, finalImg.rows - 440), FONT_HERSHEY_DUPLEX, 0.40, Scalar(0, 0, 250), 1);
 
         // Only print the message to the console once per fail.
-        if (nCount <= 100)
+        if (count <= 100)
         {
             // Print message to console.
             cout << "\nMESSAGE: SolvePNP was unable to process the image data. Moving on...\n" << e.what();
 
             // Add one error count to toggle.
-            nCount++;
+            count++;
         }
     }
 
     // Return useless stuff for now.
-    return vObjectPosition;
+    return objectPosition;
 }
 
 /****************************************************************************
@@ -474,9 +465,9 @@ vector<double> VideoProcess::SolveObjectPose(vector<Point2f> m_pImagePoints, Mat
 
         Returns: 		Nothing
 ****************************************************************************/
-void VideoProcess::SetIsStopping(bool bIsStopping)
+void VideoProcess::SetIsStopping(bool isStopping)
 {
-    this->m_bIsStopping = bIsStopping;
+    this->isStopping = isStopping;
 }
 
 /****************************************************************************
@@ -488,7 +479,7 @@ void VideoProcess::SetIsStopping(bool bIsStopping)
 ****************************************************************************/
 bool VideoProcess::GetIsStopped()
 {
-    return m_bIsStopped;
+    return isStopped;
 }
 
 /****************************************************************************
@@ -500,5 +491,5 @@ bool VideoProcess::GetIsStopped()
 ****************************************************************************/
 int VideoProcess::GetFPS()
 {
-    return m_nFPS;
+    return FPSCount;
 }

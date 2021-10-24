@@ -36,19 +36,19 @@ public:
     // Declare class methods.
     VideoGet();
     ~VideoGet();
-    void StartCapture(Mat &m_pFrame, bool &bCameraSourceIndex, bool &bDrivingMode, shared_timed_mutex &m_pMutex);
-    void SetIsStopping(bool bIsStopping);
+    void StartCapture(Mat &frame, bool &cameraSourceIndex, bool &drivingMode, shared_timed_mutex &Mutex);
+    void SetIsStopping(bool isStopping);
     bool GetIsStopped();
     int GetFPS();
 
 private:
     // Declare class objects and variables.
-    FPS*					m_pFPS;
+    FPS*					FPSCounter;
     VideoCapture			cap;
     
-    int						m_nFPS;
-    bool					m_bIsStopping;
-    bool					m_bIsStopped;
+    int						FPSCount;
+    bool					isStopping;
+    bool					isStopped;
 };
 ///////////////////////////////////////////////////////////////////////////////
 #endif

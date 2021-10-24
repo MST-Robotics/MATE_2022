@@ -21,11 +21,11 @@
 VideoShow::VideoShow()
 {
     // Create objects.
-    m_pFPS									= new FPS();
+    FPSCounter									= new FPS();
 
     // Initialize member variables.
-    m_bIsStopping							= false;
-    m_bIsStopped							= false;
+    isStopping							= false;
+    isStopped							= false;
 }
 
 /****************************************************************************
@@ -38,10 +38,10 @@ VideoShow::VideoShow()
 VideoShow::~VideoShow()
 {
     // Delete object pointers.
-    delete m_pFPS;
+    delete FPSCounter;
 
     // Set object pointers as nullptrs.
-    m_pFPS = nullptr;
+    FPSCounter = nullptr;
 }
 
 /****************************************************************************
@@ -51,7 +51,7 @@ VideoShow::~VideoShow()
 
         Returns: 		Nothing
 ****************************************************************************/
-void VideoShow::ShowFrame(Mat &m_pFrame, vector<CvSource> &m_vCameraSources, shared_timed_mutex &m_pMutex)
+void VideoShow::ShowFrame(Mat &frame, vector<CvSource> &cameraSources, shared_timed_mutex &Mutex)
 {
     // Give other threads some time.
     this_thread::sleep_for(std::chrono::milliseconds(1000));
@@ -59,7 +59,7 @@ void VideoShow::ShowFrame(Mat &m_pFrame, vector<CvSource> &m_vCameraSources, sha
     while (1)
     {
         // Increment FPS counter.
-        m_pFPS->Increment();
+        FPSCounter->Increment();
 
         // Check to make sure frame is not corrupt.
         try
@@ -68,12 +68,12 @@ void VideoShow::ShowFrame(Mat &m_pFrame, vector<CvSource> &m_vCameraSources, sha
             this_thread::sleep_for(std::chrono::milliseconds(25));
 
             // Acquire resource lock for thread.
-            shared_lock<shared_timed_mutex> guard(m_pMutex);
+            shared_lock<shared_timed_mutex> guard(Mutex);
 
-            if (!m_pFrame.empty())
+            if (!frame.empty())
             {
                 // Output frame to camera stream.
-                m_vCameraSources[0].PutFrame(m_pFrame);
+                cameraSources[0].PutFrame(frame);
             }
             else
             {
@@ -88,17 +88,17 @@ void VideoShow::ShowFrame(Mat &m_pFrame, vector<CvSource> &m_vCameraSources, sha
         }
 
         // Calculate FPS.
-        m_nFPS = m_pFPS->FramesPerSec();
+        FPSCount = FPSCounter->FramesPerSec();
 
         // If the program stops shutdown the thread.
-        if (m_bIsStopping)
+        if (isStopping)
         {
             break;
         }
     }
 
     // Clean-up.
-    m_bIsStopped = true;
+    isStopped = true;
 }
 
 /****************************************************************************
@@ -108,9 +108,9 @@ void VideoShow::ShowFrame(Mat &m_pFrame, vector<CvSource> &m_vCameraSources, sha
 
         Returns: 		Nothing
 ****************************************************************************/
-void VideoShow::SetIsStopping(bool bIsStopping)
+void VideoShow::SetIsStopping(bool isStopping)
 {
-    this->m_bIsStopping = bIsStopping;
+    this->isStopping = isStopping;
 }
 
 /****************************************************************************
@@ -122,7 +122,7 @@ void VideoShow::SetIsStopping(bool bIsStopping)
 ****************************************************************************/
 bool VideoShow::GetIsStopped()
 {
-    return m_bIsStopped;
+    return isStopped;
 }
 
 /****************************************************************************
@@ -134,6 +134,6 @@ bool VideoShow::GetIsStopped()
 ****************************************************************************/
 int VideoShow::GetFPS()
 {
-    return m_nFPS;
+    return FPSCount;
 }
 ///////////////////////////////////////////////////////////////////////////////

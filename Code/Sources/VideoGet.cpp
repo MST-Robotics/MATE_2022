@@ -21,11 +21,11 @@
 VideoGet::VideoGet()
 {
     // Create objects.
-    m_pFPS									= new FPS();
+    FPSCounter									= new FPS();
 
     // Initialize Variables.
-    m_bIsStopping							= false;
-    m_bIsStopped							= false;
+    isStopping							= false;
+    isStopped							= false;
 
     // Create VideoCapture object for reading video file.
     cap = VideoCapture();
@@ -45,10 +45,10 @@ VideoGet::VideoGet()
 VideoGet::~VideoGet()
 {
     // Delete object pointers.
-    delete m_pFPS;
+    delete FPSCounter;
 
     // Set object pointers as nullptrs.
-    m_pFPS				 = nullptr;
+    FPSCounter				 = nullptr;
 }
 
 /****************************************************************************
@@ -58,39 +58,39 @@ VideoGet::~VideoGet()
 
         Returns: 		Nothing
 ****************************************************************************/
-void VideoGet::StartCapture(Mat &m_pFrame, bool &bCameraSourceIndex, bool &bDrivingMode, shared_timed_mutex &m_pMutex)
+void VideoGet::StartCapture(Mat &frame, bool &cameraSourceIndex, bool &drivingMode, shared_timed_mutex &Mutex)
 {
     // Continuously grab camera frames.
     while (1)
     {
         // Increment FPS counter.
-        m_pFPS->Increment();
+        FPSCounter->Increment();
 
         try
         {
             // Acquire resource lock for thread.
-            lock_guard<shared_timed_mutex> guard(m_pMutex);		// unique_lock
+            lock_guard<shared_timed_mutex> guard(Mutex);		// unique_lock
 
             // Read frame from video file.
-            cap >> m_pFrame;
+            cap >> frame;
 
             // // If the frame is empty, stop the capture.
-            // if (m_vCameraSinks.empty())
+            // if (cameraSinks.empty())
             // {
             // 	break;
             // }
 
             // // Grab frame from either camera1 or camera2.
             // static bool bToggle = false;
-            // if (bDrivingMode)
+            // if (drivingMode)
             // {
             // 	// Set camera properties.
-            // 	m_vCameras[0].SetBrightness(10);
-            // 	m_vCameras[0].SetExposureAuto();
-            // 	m_vCameras[0].SetWhiteBalanceAuto();
-            // 	m_vCameras[1].SetBrightness(10);
-            // 	m_vCameras[1].SetExposureAuto();
-            // 	m_vCameras[1].SetWhiteBalanceAuto();
+            // 	cameras[0].SetBrightness(10);
+            // 	cameras[0].SetExposureAuto();
+            // 	cameras[0].SetWhiteBalanceAuto();
+            // 	cameras[1].SetBrightness(10);
+            // 	cameras[1].SetExposureAuto();
+            // 	cameras[1].SetWhiteBalanceAuto();
             // 	// Set toggle var.
             // 	bToggle = false;
             // }
@@ -100,27 +100,27 @@ void VideoGet::StartCapture(Mat &m_pFrame, bool &bCameraSourceIndex, bool &bDriv
             // 	if (!bToggle)
             // 	{
             // 		// Set camera properties.
-            // 		m_vCameras[0].SetBrightness(0);
-            // 		m_vCameras[0].SetExposureManual(20);
+            // 		cameras[0].SetBrightness(0);
+            // 		cameras[0].SetExposureManual(20);
             // 		// Set camera properties.
-            // 		m_vCameras[1].SetBrightness(10);
-            // 		m_vCameras[1].SetExposureAuto();
-            // 		m_vCameras[1].SetWhiteBalanceAuto();
+            // 		cameras[1].SetBrightness(10);
+            // 		cameras[1].SetExposureAuto();
+            // 		cameras[1].SetWhiteBalanceAuto();
             // 		// Set toggle var.
             // 		bToggle = true;
             // 	}
             // }
 
             // // Get camera frames.
-            // if (bCameraSourceIndex)
+            // if (cameraSourceIndex)
             // {
             // 	// Get camera frame.
-            // 	m_vCameraSinks[1].GrabFrame(m_pFrame);
+            // 	cameraSinks[1].GrabFrame(frame);
             // }
             // else
             // {
             // 	// Get camera frame.
-            // 	m_vCameraSinks[0].GrabFrame(m_pFrame);
+            // 	cameraSinks[0].GrabFrame(frame);
             // }
         }
         catch (const exception& e)
@@ -130,17 +130,17 @@ void VideoGet::StartCapture(Mat &m_pFrame, bool &bCameraSourceIndex, bool &bDriv
         }
 
         // Calculate FPS.
-        m_nFPS = m_pFPS->FramesPerSec();
+        FPSCount = FPSCounter->FramesPerSec();
 
         // If the program stops shutdown the thread.
-        if (m_bIsStopping)
+        if (isStopping)
         {
             break;
         }
     }
 
     // Clean-up.
-    m_bIsStopped = true;
+    isStopped = true;
     return;
 }
 
@@ -151,9 +151,9 @@ void VideoGet::StartCapture(Mat &m_pFrame, bool &bCameraSourceIndex, bool &bDriv
 
         Returns: 		Nothing
 ****************************************************************************/
-void VideoGet::SetIsStopping(bool bIsStopping)
+void VideoGet::SetIsStopping(bool isStopping)
 {
-    this->m_bIsStopping = bIsStopping;
+    this->isStopping = isStopping;
 }
 
 /****************************************************************************
@@ -165,7 +165,7 @@ void VideoGet::SetIsStopping(bool bIsStopping)
 ****************************************************************************/
 bool VideoGet::GetIsStopped()
 {
-    return m_bIsStopped;
+    return isStopped;
 }
 
 /****************************************************************************
@@ -177,6 +177,6 @@ bool VideoGet::GetIsStopped()
 ****************************************************************************/
 int VideoGet::GetFPS()
 {
-    return m_nFPS;
+    return FPSCount;
 }
 ///////////////////////////////////////////////////////////////////////////////

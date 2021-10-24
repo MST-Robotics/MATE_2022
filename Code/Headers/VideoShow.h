@@ -47,18 +47,18 @@ public:
     // Define class methods.
     VideoShow();
     ~VideoShow();
-    void ShowFrame(Mat &m_pFrame, vector<CvSource> &m_vCameraSources, shared_timed_mutex &m_pMutex);
-    void SetIsStopping(bool bIsStopping);
+    void ShowFrame(Mat &frame, vector<CvSource> &cameraSources, shared_timed_mutex &Mutex);
+    void SetIsStopping(bool isStopping);
     bool GetIsStopped();
     int GetFPS();
 
 private:
     // Declare class objects and variables.
-    FPS*						m_pFPS;
+    FPS*						FPSCounter;
     
-    int							m_nFPS;
-    bool						m_bIsStopping;
-    bool						m_bIsStopped;
+    int							FPSCount;
+    bool						isStopping;
+    bool						isStopped;
 };
 ///////////////////////////////////////////////////////////////////////////////
 #endif

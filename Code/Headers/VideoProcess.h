@@ -50,47 +50,41 @@ public:
     // Declare class methods.
     VideoProcess();
     ~VideoProcess();
-    void Process(Mat &m_pFrame, Mat &m_pFinalImg, int &m_nTargetCenterX, int &m_nTargetCenterY, double &m_dContrastValue, double &m_dTargetAngle, bool &m_bTuningMode, bool &m_bDrivingMode, bool &m_bTrackingMode, bool &m_bSolvePNPEnabled, vector<int> &m_vTrackbarValues, vector<double> &m_vSolvePNPValues, VideoGet &pVideoGetter, shared_timed_mutex &m_pMutexGet, shared_timed_mutex &m_pMutexShow);
-    int SignNum(double dVal);
-    vector<double> SolveObjectPose(vector<Point2f> m_pImagePoints, Mat &m_pFinalImg, Mat &m_pFrame, int nTargetPositionX, int nTargetPositionY);
-    void SetIsStopping(bool bIsStopping);
+    void Process(Mat &frame, Mat &finalImg, int &targetCenterX, int &targetCenterY, double &contrastValue, double &targetAngle, bool &tuningMode, bool &drivingMode, bool &trackingMode, bool &solvePNPEnabled, vector<int> &trackbarValues, vector<double> &solvePNPValues, VideoGet &VideoGetter, shared_timed_mutex &MutexGet, shared_timed_mutex &MutexShow);
+    int SignNum(double val);
+    vector<double> SolveObjectPose(vector<Point2f> imagePoints, Mat &finalImg, Mat &frame, int targetPositionX, int targetPositionY);
+    void SetIsStopping(bool isStopping);
     bool GetIsStopped();
     int GetFPS();
 
 private:
     // Declare class objects and variables.
-    Mat							m_pHSVImg;
-    Mat							m_pBlurImg;
-    Mat							m_pFilterImg;
-    Mat							m_pDilateImg;
-    Mat							m_pCorners;
-    Mat							m_pCornersNormalized;
-    Mat							m_pCornersScaled;
-    Mat							m_pKernel;
-    Mat							m_pCameraMatrix;
-    Mat							m_pDistanceCoefficients;
-    vector<Point3f>				m_pObjectPoints;
-    vector<vector<Point>>		m_vContours;
-    vector<Vec4i>				m_pHierarchy;
-    FPS*						m_pFPS;
+    Mat							HSVImg;
+    Mat							blurImg;
+    Mat							filterImg;
+    Mat							dilateImg;
+    Mat							corners;
+    Mat							cornersNormalized;
+    Mat							cornersScaled;
+    Mat							kernel;
+    Mat							cameraMatrix;
+    Mat							distanceCoefficients;
+    vector<Point3f>				objectPoints;
+    vector<vector<Point>>		contours;
+    vector<Vec4i>				hierarchy;
+    FPS*						FPSCounter;
 
-    int							m_nFPS;
-    int							m_nMinimumNumberOfTapeVertices;
-    int							m_nMinimumPowerCellRadius;
-    int							m_nMaxContours;
-    int							m_nScreenHeight;
-    int							m_nScreenWidth;
-    int							m_nGreenBlurRadius;
-    int							m_nOrangeBlurRadius;
-    int							m_nHorizontalAspect;
-    int							m_nVerticalAspect;
-    int							m_nNumberOfPolyCorners;
-    double						m_dPipeLargestContourArea;
-    double						m_dCameraFOV;
-    double						m_dFocalLength;
+    int							FPSCount;
+    int							screenHeight;
+    int							screenWidth;
+    int							greenBlurRadius;
+    int							horizontalAspect;
+    int							verticalAspect;
+    double						cameraFOV;
+    double						focalLength;
     const double				PI = 3.14159265358979323846;
-    bool						m_bIsStopping;
-    bool						m_bIsStopped;
+    bool						isStopping;
+    bool						isStopped;
 };
 ///////////////////////////////////////////////////////////////////////////////
 #endif

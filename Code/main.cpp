@@ -75,11 +75,11 @@ using namespace std;
  */
 
 // Store config file.
-static const char* m_cConfigFile = "/boot/frc.json";
+static const char* configFile = "/boot/frc.json";
 
 // Create namespace variables, stucts, and objects.
-unsigned int m_nTeam;
-bool m_bServer = false;
+unsigned int team;
+bool server = false;
 
 struct CameraConfig 
 {
@@ -95,15 +95,15 @@ struct SwitchedCameraConfig
 	string key;
 };
 
-vector<CameraConfig> m_vCameraConfigs;
-vector<SwitchedCameraConfig> m_vSwitchedCameraConfigs;
-vector<UsbCamera> m_vCameras;
-vector<CvSink> m_vCameraSinks;
-vector<CvSource> m_vCameraSources;
+vector<CameraConfig> cameraConfigs;
+vector<SwitchedCameraConfig> switchedCameraConfigs;
+vector<UsbCamera> cameras;
+vector<CvSink> cameraSinks;
+vector<CvSource> cameraSources;
 
 raw_ostream& ParseError() 
 {
-	return errs() << "config error in '" << m_cConfigFile << "': ";
+	return errs() << "config error in '" << configFile << "': ";
 }
 
 /****************************************************************************
@@ -113,15 +113,15 @@ raw_ostream& ParseError()
 
 		Returns: 		BOOL
 ****************************************************************************/
-bool ReadCameraConfig(const json& fConfig) 
+bool ReadCameraConfig(const json& config) 
 {
 	// Create instance variables.
-	CameraConfig m_pCamConfig;
+	CameraConfig camConfig;
 
 	// Get camera name.
 	try 
 	{
-		m_pCamConfig.name = fConfig.at("name").get<string>();
+		camConfig.name = config.at("name").get<string>();
 	} 
 	catch (const json::exception& e) 
 	{
@@ -132,23 +132,23 @@ bool ReadCameraConfig(const json& fConfig)
 	// Get camera path.
 	try 
 	{
-		m_pCamConfig.path = fConfig.at("path").get<string>();
+		camConfig.path = config.at("path").get<string>();
 	} 
 	catch (const json::exception& e) 
 	{
-		ParseError() << "Camera '" << m_pCamConfig.name << "': could not read path: " << e.what() << "\n";
+		ParseError() << "Camera '" << camConfig.name << "': could not read path: " << e.what() << "\n";
 		return false;
 	}
 
 	// Get stream properties.
-	if (fConfig.count("stream") != 0)
+	if (config.count("stream") != 0)
 	{
-		m_pCamConfig.streamConfig = fConfig.at("stream");
+		camConfig.streamConfig = config.at("stream");
 	}
 
-	m_pCamConfig.config = fConfig;
+	camConfig.config = config;
 
-	m_vCameraConfigs.emplace_back(move(m_pCamConfig));
+	cameraConfigs.emplace_back(move(camConfig));
 	return true;
 }
 
@@ -162,19 +162,19 @@ bool ReadCameraConfig(const json& fConfig)
 bool ReadConfig() 
 {
 	// Open config file.
-	error_code m_pErrorCode;
-	raw_fd_istream is(m_cConfigFile, m_pErrorCode);
-	if (m_pErrorCode) 
+	error_code errorCode;
+	raw_fd_istream is(configFile, errorCode);
+	if (errorCode) 
 	{
-		errs() << "Could not open '" << m_cConfigFile << "': " << m_pErrorCode.message() << "\n";
+		errs() << "Could not open '" << configFile << "': " << errorCode.message() << "\n";
 		return false;
 	}
 
 	// Parse file.
-	json m_fParseFile;
+	json parseFile;
 	try 
 	{
-		m_fParseFile = json::parse(is);
+		parseFile = json::parse(is);
 	} 
 	catch (const json::parse_error& e) 
 	{
@@ -183,7 +183,7 @@ bool ReadConfig()
 	}
 
 	// Check if the top level is an object.
-	if (!m_fParseFile.is_object()) 
+	if (!parseFile.is_object()) 
 	{
 		ParseError() << "Must be JSON object!" << "\n";
 		return false;
@@ -192,7 +192,7 @@ bool ReadConfig()
 	// Get team number.
 	try 
 	{
-		m_nTeam = m_fParseFile.at("team").get<unsigned int>();
+		team = parseFile.at("team").get<unsigned int>();
 	} 
 	catch (const json::exception& e) 
 	{
@@ -201,21 +201,21 @@ bool ReadConfig()
 	}
 
 	// Get NetworkTable mode.
-	if (m_fParseFile.count("ntmode") != 0) 
+	if (parseFile.count("ntmode") != 0) 
 	{
 		try 
 		{
-			auto str = m_fParseFile.at("ntmode").get<string>();
+			auto str = parseFile.at("ntmode").get<string>();
 			StringRef s(str);
 			if (s.equals_lower("client")) 
 			{
-				m_bServer = false;
+				server = false;
 			} 
 			else 
 			{
 				if (s.equals_lower("server")) 
 				{
-					m_bServer = true;
+					server = true;
 				}
 				else 
 				{
@@ -232,7 +232,7 @@ bool ReadConfig()
 	// Read camera configs and get cameras.
 	try 
 	{
-		for (auto&& camera : m_fParseFile.at("cameras")) 
+		for (auto&& camera : parseFile.at("cameras")) 
 		{
 			if (!ReadCameraConfig(camera))
 			{
@@ -256,32 +256,32 @@ bool ReadConfig()
 
 		Returns: 		Nothing
 ****************************************************************************/
-void StartCamera(const CameraConfig& fConfig) 
+void StartCamera(const CameraConfig& config) 
 {
 	// Print debug
-	cout << "Starting camera '" << fConfig.name << "' on " << fConfig.path << "\n";
+	cout << "Starting camera '" << config.name << "' on " << config.path << "\n";
 
 	// Create new CameraServer instance and start camera.
-	CameraServer* m_Inst = CameraServer::GetInstance();
-	UsbCamera m_Camera{fConfig.name, fConfig.path};
-	MjpegServer m_pServer = m_Inst->StartAutomaticCapture(m_Camera);
+	CameraServer* instance = CameraServer::GetInstance();
+	UsbCamera camera{config.name, config.path};
+	MjpegServer server = instance->StartAutomaticCapture(camera);
 
 	// Set camera parameters.
-	m_Camera.SetConfigJson(fConfig.config);
-	m_Camera.SetConnectionStrategy(VideoSource::kConnectionKeepOpen);
+	camera.SetConfigJson(config.config);
+	camera.SetConnectionStrategy(VideoSource::kConnectionKeepOpen);
 
 	// Check for unexpected parameters.
-	if (fConfig.streamConfig.is_object())
+	if (config.streamConfig.is_object())
 	{
-		m_pServer.SetConfigJson(fConfig.streamConfig); 
+		server.SetConfigJson(config.streamConfig); 
 	}
 
 	// Store the camera video in a vector. (so we can access it later)
-	CvSink m_cvSink = m_Inst->GetVideo(fConfig.name);
-	CvSource m_cvSource = m_Inst->PutVideo(fConfig.name + "Processed", 640, 480);
-	m_vCameras.emplace_back(m_Camera);
-	m_vCameraSinks.emplace_back(m_cvSink);
-	m_vCameraSources.emplace_back(m_cvSource);
+	CvSink cvSink = instance->GetVideo(config.name);
+	CvSource cvSource = instance->PutVideo(config.name + "Processed", 640, 480);
+	cameras.emplace_back(camera);
+	cameraSinks.emplace_back(cvSink);
+	cameraSources.emplace_back(cvSource);
 }
 
 /****************************************************************************
@@ -298,7 +298,7 @@ int main(int argc, char* argv[])
 	 * ************************************************************************/
 	if (argc >= 2) 
 	{
-		m_cConfigFile = argv[1];
+		configFile = argv[1];
 	}
 
 	if (!ReadConfig())
@@ -314,15 +314,15 @@ int main(int argc, char* argv[])
 	auto NetworkTable = NetworkTablesInstance.GetTable("SmartDashboard");
 
 	// Start Networktables as a client or server.
-	if (m_bServer) 
+	if (server) 
 	{
 		cout << "Setting up NetworkTables server" << "\n";
 		NetworkTablesInstance.StartServer();
 	} 
 	else 
 	{
-		cout << "Setting up NetworkTables client for team " << m_nTeam << "\n";
-		NetworkTablesInstance.StartClientTeam(m_nTeam);
+		cout << "Setting up NetworkTables client for team " << team << "\n";
+		NetworkTablesInstance.StartClientTeam(team);
 	}
 
 	// Populate NetworkTables.
@@ -343,7 +343,7 @@ int main(int argc, char* argv[])
 	/**************************************************************************
 	 			Start Cameras
 	 * ************************************************************************/
-	for (const auto& config : m_vCameraConfigs)
+	for (const auto& config : cameraConfigs)
 	{
 		StartCamera(config);
 	}
@@ -351,74 +351,74 @@ int main(int argc, char* argv[])
 	/**************************************************************************
 	 			Start Image Processing on Camera 0
 	 * ************************************************************************/
-	if (m_vCameraSinks.size() >= 1) 
+	if (cameraSinks.size() >= 1) 
 	{
 		// Create object pointers for threads.
-		VideoGet m_pVideoGetter;
-		VideoProcess m_pVideoProcessor;
-		VideoShow m_pVideoShower;
+		VideoGet VideoGetter;
+		VideoProcess VideoProcessor;
+		VideoShow VideoShower;
 
 		// Preallocate image objects.
-		Mat	m_pFrame(480, 640, CV_8U, 1);
-		Mat m_pFinalImg(480, 640, CV_8U, 1);
+		Mat	frame(480, 640, CV_8U, 1);
+		Mat finalImg(480, 640, CV_8U, 1);
 
 		// Create a global instance of mutex to protect it.
-		shared_timed_mutex m_pMutexGet;
-		shared_timed_mutex m_pMutexShow;
+		shared_timed_mutex MutexGet;
+		shared_timed_mutex MutexShow;
 
 		// Vision options and values.
-		int m_nTargetCenterX = 0;
-		int m_nTargetCenterY = 0;
-		double m_dContrastValue = 0;
-		double m_dTargetAngle = 0;
-		bool m_bCameraSourceIndex = false;
-		bool m_bTuningMode = false;
-		bool m_bDrivingMode = false;
-		bool m_bTrackingMode = true;
-		bool m_bEnableSolvePNP = false;
-		vector<int> m_vTrackbarValues {1, 255, 1, 255, 1, 255};
-		vector<double> m_vSolvePNPValues {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+		int targetCenterX = 0;
+		int targetCenterY = 0;
+		double contrastValue = 0;
+		double targetAngle = 0;
+		bool cameraSourceIndex = false;
+		bool tuningMode = false;
+		bool drivingMode = false;
+		bool trackingMode = true;
+		bool enableSolvePNP = false;
+		vector<int> trackbarValues {1, 255, 1, 255, 1, 255};
+		vector<double> solvePNPValues {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
 
 		// Start multi-threading.
-		thread m_pVideoGetThread(&VideoGet::StartCapture, &m_pVideoGetter, ref(m_pFrame), ref(m_bCameraSourceIndex), ref(m_bDrivingMode), ref(m_pMutexGet));
-		thread m_pVideoProcessThread(&VideoProcess::Process, &m_pVideoProcessor, ref(m_pFrame), ref(m_pFinalImg), ref(m_nTargetCenterX), ref(m_nTargetCenterY), ref(m_dContrastValue), ref(m_dTargetAngle), ref(m_bTuningMode), ref(m_bDrivingMode), ref(m_bTrackingMode), ref(m_bEnableSolvePNP), ref(m_vTrackbarValues), ref(m_vSolvePNPValues), ref(m_pVideoGetter), ref(m_pMutexGet), ref(m_pMutexShow));
-		thread m_pVideoShowerThread(&VideoShow::ShowFrame, &m_pVideoShower, ref(m_pFinalImg), ref(m_vCameraSources), ref(m_pMutexShow));
+		thread VideoGetThread(&VideoGet::StartCapture, &VideoGetter, ref(frame), ref(cameraSourceIndex), ref(drivingMode), ref(MutexGet));
+		thread VideoProcessThread(&VideoProcess::Process, &VideoProcessor, ref(frame), ref(finalImg), ref(targetCenterX), ref(targetCenterY), ref(contrastValue), ref(targetAngle), ref(tuningMode), ref(drivingMode), ref(trackingMode), ref(enableSolvePNP), ref(trackbarValues), ref(solvePNPValues), ref(VideoGetter), ref(MutexGet), ref(MutexShow));
+		thread VideoShowerThread(&VideoShow::ShowFrame, &VideoShower, ref(finalImg), ref(cameraSources), ref(MutexShow));
 
 		while (1)
 		{
 			try
 			{
 				// Check if any of the threads have stopped.
-				if (!m_pVideoGetter.GetIsStopped() && !m_pVideoProcessor.GetIsStopped() && !m_pVideoShower.GetIsStopped())
+				if (!VideoGetter.GetIsStopped() && !VideoProcessor.GetIsStopped() && !VideoShower.GetIsStopped())
 				{
 					// Get NetworkTables data.
-					m_bCameraSourceIndex = NetworkTable->GetBoolean("Camera Source", false);
-					m_bTuningMode = NetworkTable->GetBoolean("Tuning Mode", false);
-					m_bDrivingMode = NetworkTable->GetBoolean("Driving Mode", false);
-					m_bTrackingMode = NetworkTable->GetBoolean("Pipe Tracking Mode", true);
-					m_bEnableSolvePNP = NetworkTable->GetBoolean("Enable SolvePNP", false);
-					m_dContrastValue = NetworkTable->GetNumber("Contrast Value", 1211.0);
-					m_vTrackbarValues[0] = int(NetworkTable->GetNumber("HMN", 1));
-					m_vTrackbarValues[1] = int(NetworkTable->GetNumber("HMX", 255));
-					m_vTrackbarValues[2] = int(NetworkTable->GetNumber("SMN", 1));
-					m_vTrackbarValues[3] = int(NetworkTable->GetNumber("SMX", 255));
-					m_vTrackbarValues[4] = int(NetworkTable->GetNumber("VMN", 1));
-					m_vTrackbarValues[5] = int(NetworkTable->GetNumber("VMX", 255));
+					cameraSourceIndex = NetworkTable->GetBoolean("Camera Source", false);
+					tuningMode = NetworkTable->GetBoolean("Tuning Mode", false);
+					drivingMode = NetworkTable->GetBoolean("Driving Mode", false);
+					trackingMode = NetworkTable->GetBoolean("Pipe Tracking Mode", true);
+					enableSolvePNP = NetworkTable->GetBoolean("Enable SolvePNP", false);
+					contrastValue = NetworkTable->GetNumber("Contrast Value", 1211.0);
+					trackbarValues[0] = int(NetworkTable->GetNumber("HMN", 1));
+					trackbarValues[1] = int(NetworkTable->GetNumber("HMX", 255));
+					trackbarValues[2] = int(NetworkTable->GetNumber("SMN", 1));
+					trackbarValues[3] = int(NetworkTable->GetNumber("SMX", 255));
+					trackbarValues[4] = int(NetworkTable->GetNumber("VMN", 1));
+					trackbarValues[5] = int(NetworkTable->GetNumber("VMX", 255));
 
 					// Put NetworkTables data.
-					NetworkTable->PutNumber("Target Center X", m_nTargetCenterX);
-					NetworkTable->PutNumber("Target Center Y", m_nTargetCenterY);
-					NetworkTable->PutNumber("Target Angle", (m_dTargetAngle + int(NetworkTable->GetNumber("X Setpoint Offset", 0))));
-					NetworkTable->PutNumber("SPNP X Dist", m_vSolvePNPValues[0]);
-					NetworkTable->PutNumber("SPNP Y Dist", m_vSolvePNPValues[1]);
-					NetworkTable->PutNumber("SPNP Z Dist", m_vSolvePNPValues[2]);
-					NetworkTable->PutNumber("SPNP Roll", m_vSolvePNPValues[3]);
-					NetworkTable->PutNumber("SPNP Pitch", m_vSolvePNPValues[4]);
-					NetworkTable->PutNumber("SPNP Yaw", m_vSolvePNPValues[5]);
+					NetworkTable->PutNumber("Target Center X", targetCenterX);
+					NetworkTable->PutNumber("Target Center Y", targetCenterY);
+					NetworkTable->PutNumber("Target Angle", (targetAngle + int(NetworkTable->GetNumber("X Setpoint Offset", 0))));
+					NetworkTable->PutNumber("SPNP X Dist", solvePNPValues[0]);
+					NetworkTable->PutNumber("SPNP Y Dist", solvePNPValues[1]);
+					NetworkTable->PutNumber("SPNP Z Dist", solvePNPValues[2]);
+					NetworkTable->PutNumber("SPNP Roll", solvePNPValues[3]);
+					NetworkTable->PutNumber("SPNP Pitch", solvePNPValues[4]);
+					NetworkTable->PutNumber("SPNP Yaw", solvePNPValues[5]);
 
 					// Put different trackbar values on smartdashboard depending on camera source.
-					static bool bSetValuesToggle = false;
-					if (!m_bCameraSourceIndex && bSetValuesToggle == false)		// Turret Camera.
+					static bool setValuesToggle = false;
+					if (!cameraSourceIndex && setValuesToggle == false)		// Turret Camera.
 					{
 						// Put trackbar values for tape tracking.
 						NetworkTable->PutNumber("HMN", 48);
@@ -432,11 +432,11 @@ int main(int argc, char* argv[])
 						NetworkTable->PutBoolean("Pipe Tracking Mode", true);
 
 						// Set toggle.
-						bSetValuesToggle = true;
+						setValuesToggle = true;
 					}
 					else
 					{
-						if (m_bCameraSourceIndex && bSetValuesToggle == true)	// Bottom Camera.
+						if (cameraSourceIndex && setValuesToggle == true)	// Bottom Camera.
 						{
 							// Put trackbar values for tape tracking.
 							NetworkTable->PutNumber("HMN", 0);
@@ -450,7 +450,7 @@ int main(int argc, char* argv[])
 							NetworkTable->PutBoolean("Pipe Tracking Mode", false);
 
 							// Set toggle.
-							bSetValuesToggle = false;
+							setValuesToggle = false;
 						}
 					}
 					
@@ -459,16 +459,16 @@ int main(int argc, char* argv[])
 					this_thread::sleep_for(std::chrono::milliseconds(20));
 
 					// Print debug info.
-					//cout << "Getter FPS: " << m_pVideoGetter.GetFPS() << "\n";
-					//cout << "Processor FPS: " << m_pVideoProcessor.GetFPS() << "\n";
-					//cout << "Shower FPS: " << m_pVideoShower.GetFPS() << "\n";
+					//cout << "Getter FPS: " << VideoGetter.GetFPS() << "\n";
+					//cout << "Processor FPS: " << VideoProcessor.GetFPS() << "\n";
+					//cout << "Shower FPS: " << VideoShower.GetFPS() << "\n";
 				}
 				else
 				{
 					// Notify other threads the program is stopping.
-					m_pVideoGetter.SetIsStopping(true);
-					m_pVideoProcessor.SetIsStopping(true);
-					m_pVideoShower.SetIsStopping(true);
+					VideoGetter.SetIsStopping(true);
+					VideoProcessor.SetIsStopping(true);
+					VideoShower.SetIsStopping(true);
 					break;
 				}
 			}
@@ -479,9 +479,9 @@ int main(int argc, char* argv[])
 		}
 
 		// Stop all threads.
-		m_pVideoGetThread.join();
-		m_pVideoProcessThread.join();
-		m_pVideoShowerThread.join();
+		VideoGetThread.join();
+		VideoProcessThread.join();
+		VideoShowerThread.join();
 
 		// Print that program has safely and successfully shutdown.
 		cout << "All threads have been released! Program will now stop..." << "\n";
