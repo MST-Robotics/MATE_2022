@@ -21,7 +21,7 @@
 VideoProcess::VideoProcess()
 {
     // Create object pointers.
-    FPSCounter									    = new FPS();
+    FPSCounter							    = new FPS();
     
     // Initialize member variables.
     kernel								    = getStructuringElement(MORPH_ELLIPSE, Size(3, 3));
@@ -84,7 +84,7 @@ VideoProcess::~VideoProcess()
 
         Returns: 		Nothing
 ****************************************************************************/
-void VideoProcess::Process(Mat &frame, Mat &finalImg, int &targetCenterX, int &targetCenterY, double &contrastValue, double &targetAngle, bool &tuningMode, bool &drivingMode, bool &trackingMode, bool &solvePNPEnabled, vector<int> &trackbarValues, vector<double> &solvePNPValues, VideoGet &VideoGetter, shared_timed_mutex &MutexGet, shared_timed_mutex &MutexShow)
+void VideoProcess::Process(Mat &frame, Mat &finalImg, int &targetCenterX, int &targetCenterY, int &centerLineTolerance, double &contourAreaMinLimit, double &contourAreaMaxLimit, bool &tuningMode, bool &drivingMode, bool &trackingMode, bool &solvePNPEnabled, vector<int> &trackbarValues, vector<double> &solvePNPValues, VideoGet &VideoGetter, shared_timed_mutex &MutexGet, shared_timed_mutex &MutexShow)
 {
     // Give other threads enough time to start before processing camera frames.
     this_thread::sleep_for(std::chrono::milliseconds(800));
@@ -131,95 +131,116 @@ void VideoProcess::Process(Mat &frame, Mat &finalImg, int &targetCenterX, int &t
                         // Draw all contours in white.
                         // drawContours(finalImg, contours, -1, Scalar(255, 255, 210), 1, LINE_4, hierarchy);
 
+                        // Only continue if we have more than two contours.
                         if (contours.size() >= 2)
                         {
                             // 'Round off' all contours with convexHull.
-                            vector<vector<Point>> vHulls;
-                            for (vector<Point> vContour : contours)
+                            vector<vector<Point>> hulls;
+                            for (vector<Point> contour : contours)
                             {
-                                vector<Point> vHull;
-                                convexHull(vContour, vHull);
-                                vHulls.emplace_back(vHull);
+                                vector<Point> hull;
+                                convexHull(contour, hull);
+                                hulls.emplace_back(hull);
                             }
                             
                             // Sort contours from biggest to smallest.
-                            sort(vHulls.begin(), vHulls.end(), [](const vector<Point>& c1, const vector<Point>& c2) {	return fabs(contourArea(c1, false)) > fabs(contourArea(c2, false)); });
+                            sort(hulls.begin(), hulls.end(), [](const vector<Point>& c1, const vector<Point>& c2) {	return fabs(contourArea(c1, false)) > fabs(contourArea(c2, false)); });
                             
                             // Remove contours whose area doesn't meet the threshold.
-                            vector<vector<Point>> vFilteredHulls;
-                            for (vector<Point> vHull : vHulls)
+                            vector<vector<Point>> filteredHulls;
+                            for (vector<Point> hull : hulls)
                             {
-                                if (contourArea(vHull) >= contrastValue)
+                                double area = contourArea(hull);
+                                if (area >= contourAreaMinLimit && area <= contourAreaMaxLimit)
                                 {
-                                    vFilteredHulls.emplace_back(vHull);
+                                    filteredHulls.emplace_back(hull);
                                 }
                             }
 
-                            if (vFilteredHulls.size() > 2)
+                            // Only continue if we have more than two contours.
+                            if (filteredHulls.size() > 2)
                             {
                                 // Draw convex hull contours.
-                                polylines(finalImg, vFilteredHulls, true, Scalar(255, 255, 210), 1);
+                                polylines(finalImg, filteredHulls, true, Scalar(255, 255, 210), 1);
 
                                 // Store the upper and lower extremes of each hull contour.
-                                vector<vector<int>> vHullExtremes;
-                                for (vector<Point> vHull : vFilteredHulls)
+                                vector<vector<int>> hullExtremes;
+                                for (vector<Point> hull : filteredHulls)
                                 {
                                     // Find and store the bounding rect. (Rect type contains x, y, height, width)
-                                    auto val = minmax_element(vHull.begin(), vHull.end(), [](Point const& a, Point const& b) { return a.y < b.y; });
-                                    vector<int> vPoint;
-                                    vPoint.emplace_back(val.first->x);
-                                    vPoint.emplace_back(val.first->y);
-                                    vPoint.emplace_back(val.second->x);
-                                    vPoint.emplace_back(val.second->y);
-                                    vHullExtremes.emplace_back(vPoint);
+                                    auto val = minmax_element(hull.begin(), hull.end(), [](Point const& a, Point const& b) { return a.y < b.y; });
+                                    vector<int> point;
+                                    point.emplace_back(val.first->x);
+                                    point.emplace_back(val.first->y);
+                                    point.emplace_back(val.second->x);
+                                    point.emplace_back(val.second->y);
+                                    hullExtremes.emplace_back(point);
                                 }
 
                                 // Now that we have the lines, find the tallest one.
-                                int nMinLineLength = 50;
-                                vector<int> vTallestLine1 = {0, 0, 0, nMinLineLength};
-                                for (vector<int> vLine : vHullExtremes)
+                                int minLineLength = 50;
+                                vector<int> tallestLine1 = {0, 0, 0, minLineLength};
+                                for (vector<int> line : hullExtremes)
                                 {
                                     // Compare the y distance of the line to the currently stored biggest one.
-                                    if ((vLine[3] - vLine[1]) > (vTallestLine1[3] - vTallestLine1[1]))
+                                    if ((line[3] - line[1]) > (tallestLine1[3] - tallestLine1[1]))
                                     {
-                                        vTallestLine1.assign(vLine.begin(), vLine.end());
+                                        tallestLine1.assign(line.begin(), line.end());
                                     }
                                 }
 
                                 // Remove the line we just found.
-                                vHullExtremes.erase(remove(vHullExtremes.begin(), vHullExtremes.end(), vTallestLine1));
+                                hullExtremes.erase(remove(hullExtremes.begin(), hullExtremes.end(), tallestLine1));
                                 // Find the next tallest line segment.
-                                vector<int>vTallestLine2 = {screenWidth, 0, screenWidth, nMinLineLength};
-                                for (vector<int> vLine : vHullExtremes)
+                                vector<int> tallestLine2 = {screenWidth, 0, screenWidth, minLineLength};
+                                for (vector<int> line : hullExtremes)
                                 {
                                     // Compare the y distance of the line to the currently stored biggest one.
-                                    if ((vLine[3] - vLine[1]) > (vTallestLine2[3] - vTallestLine2[1]))
+                                    if ((line[3] - line[1]) > (tallestLine2[3] - tallestLine2[1]))
                                     {
-                                        vTallestLine2.assign(vLine.begin(), vLine.end());
+                                        tallestLine2.assign(line.begin(), line.end());
                                     }
                                 }
 
                                 // Find the center line.
-                                vector<int> vCenterLine;
-                                if (vTallestLine1[0] < vTallestLine2[0])
+                                vector<int> centerLine;
+                                if (tallestLine1[0] < tallestLine2[0])
                                 {
-                                    vCenterLine = {(vTallestLine1[0] + ((vTallestLine2[0] - vTallestLine1[0]) / 2)), vTallestLine1[1], (vTallestLine1[2] + ((vTallestLine2[2] - vTallestLine1[2]) / 2)), vTallestLine1[3]};
+                                    centerLine = {(tallestLine1[0] + ((tallestLine2[0] - tallestLine1[0]) / 2)), tallestLine1[1], (tallestLine1[2] + ((tallestLine2[2] - tallestLine1[2]) / 2)), tallestLine1[3]};
                                 }
                                 else
                                 {
-                                    vCenterLine = {(vTallestLine2[0] + ((vTallestLine1[0] - vTallestLine2[0]) / 2)), vTallestLine1[1], (vTallestLine2[2] + ((vTallestLine1[2] - vTallestLine2[2]) / 2)), vTallestLine1[3]};
+                                    centerLine = {(tallestLine2[0] + ((tallestLine1[0] - tallestLine2[0]) / 2)), tallestLine1[1], (tallestLine2[2] + ((tallestLine1[2] - tallestLine2[2]) / 2)), tallestLine1[3]};
                                 }
 
-                                // Draw the two tallest line segments and the center line.
-                                line(finalImg, Point(vTallestLine2[0], vTallestLine2[1]), Point(vTallestLine2[2], vTallestLine2[3]), Scalar(255, 0, 0), 3, LINE_4, 0);
-                                line(finalImg, Point(vTallestLine1[0], vTallestLine1[1]), Point(vTallestLine1[2], vTallestLine1[3]), Scalar(255, 0, 0), 3, LINE_4, 0);
-                                line(finalImg, Point(vCenterLine[0], vCenterLine[1]), Point(vCenterLine[2], vCenterLine[3]), Scalar(0, 200, 0), 3, LINE_4, 0);
+                                // Calculate the X center of the center line.
+                                int lineCenterX = (((centerLine[0] - centerLine[2]) / 2) + centerLine[2]) - (screenWidth / 2);
+                                // Calculate the width of the pipe channel.
+                                int lineCenterY = fabs(((tallestLine1[0] - tallestLine1[2]) / 2) - ((tallestLine2[0] - tallestLine2[2]) / 2));
+                                // If center line is not close to the center of the screen, then don't draw and output zero.
+                                if (fabs(lineCenterX) < centerLineTolerance)
+                                {
+                                    // Draw the two tallest line segments and the center line.
+                                    line(finalImg, Point(tallestLine2[0], tallestLine2[1]), Point(tallestLine2[2], tallestLine2[3]), Scalar(255, 0, 0), 3, LINE_4, 0);
+                                    line(finalImg, Point(tallestLine1[0], tallestLine1[1]), Point(tallestLine1[2], tallestLine1[3]), Scalar(255, 0, 0), 3, LINE_4, 0);
+                                    line(finalImg, Point(centerLine[0], centerLine[1]), Point(centerLine[2], centerLine[3]), Scalar(0, 200, 0), 3, LINE_4, 0);
+                                    
+                                    // Push position of tracked target.
+                                    targetCenterX = lineCenterX;
+                                    targetCenterY = lineCenterY;
+                                }
+                                else
+                                {
+                                    // Push a default center values.
+                                    targetCenterX = 0;
+                                    targetCenterY = -1;
+                                }
 
-                                // // Store/convert the vHulls contours into a Mat.
+                                // // Store/convert the hulls contours into a Mat.
                                 // Mat mEdgeImg = Mat::zeros(finalImg.size(), CV_8UC1);
-                                // polylines(mEdgeImg, vHulls, true, Scalar(255, 255, 255), 8);
+                                // polylines(mEdgeImg, hulls, true, Scalar(255, 255, 255), 8);
                                 // mEdgeImg.copyTo(dilateImg);
-                                // // drawContours(mEdgeImg, vHulls, -1, Scalar(255, 255, 255), 1, LINE_4);
+                                // // drawContours(mEdgeImg, hulls, -1, Scalar(255, 255, 255), 1, LINE_4);
 
                                 // // Setup HoughLinesP function variables.
                                 // double dRHO = 1;									// Distance resolution in pixels of the hough grid.
@@ -228,32 +249,26 @@ void VideoProcess::Process(Mat &frame, Mat &finalImg, int &targetCenterX, int &t
                                 // double dMinLineLength = 50;							// Minimum number of pixels making up a line.
                                 // double dMaxLineGap = 50;							// Maximum gap in pixels between connectable line segments.
                                 // // Use HoughLinesP algorithm to detect potential line segments.
-                                // vector<Vec4i> vLines;
-                                // HoughLinesP(mEdgeImg, vLines, dRHO, dTheta, nThreshold, dMinLineLength, dMaxLineGap);
+                                // vector<Vec4i> lines;
+                                // HoughLinesP(mEdgeImg, lines, dRHO, dTheta, nThreshold, dMinLineLength, dMaxLineGap);
 
                                 // // Draw the detected lines.
-                                // for (Vec4i vLine : vLines)
+                                // for (Vec4i line : lines)
                                 // {
                                 // 	// Draw line.
-                                // 	line(finalImg, Point(vLine[0], vLine[1]), Point(vLine[2], vLine[3]), Scalar(0, 0, 255), 4, LINE_4, 0);
+                                // 	line(finalImg, Point(line[0], line[1]), Point(line[2], line[3]), Scalar(0, 0, 255), 4, LINE_4, 0);
                                 // }
                                 
                                 // Sort array based on coordinates (leftmost to rightmost) to make sure contours are adjacent.
                                 // sort(vBiggestContours.begin(), vBiggestContours.end(), [](const vector<double>& points1, const vector<double>& points2) { return points1[0] < points2[0]; }); 		// Sorts using nCX location.	
                             }
                         }
-
-                        // // Push position of tracked target.
-                        // targetCenterX = targetPositionX - (screenWidth / 2);
-                        // targetCenterY = -(targetPositionY - (screenHeight / 2));
-
-                        // // Draw how many targets are detected on screen.
-                        // putText(finalImg, ("Targets Detected: " + to_string(vBiggestContours.size())), Point(10, finalImg.rows - 40), FONT_HERSHEY_DUPLEX, 0.65, Scalar(200, 200, 200), 1);
-                        // // Draw target distance and target crosshairs with error line.
-                        // putText(finalImg, ("size:" + to_string(dBiggestContour)), Point(10, finalImg.rows - 100), FONT_HERSHEY_DUPLEX, 0.65, Scalar(200, 200, 200), 1);
-                        // line(finalImg, Point(targetPositionX, screenHeight), Point(targetPositionX, 0), Scalar(0, 0, 200), 1, LINE_4, 0);
-                        // line(finalImg, Point(0, targetPositionY), Point(screenWidth, targetPositionY), Scalar(0, 0, 200), 1, LINE_4, 0);
-                        // //line(finalImg, Point((screenWidth / 2), (screenHeight / 2)), Point(targetPositionX, targetPositionY), Scalar(200, 0, 0), 2, LINE_4, 0);
+                        else
+                        {
+                            // No contours to track. Output zero.
+                            targetCenterX = 0;
+                            targetCenterY = -1;
+                        }
                     }
                     else
                     {

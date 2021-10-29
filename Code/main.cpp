@@ -332,7 +332,9 @@ int main(int argc, char* argv[])
 	NetworkTable->PutBoolean("Pipe Tracking Mode", true);
 	NetworkTable->PutBoolean("Enable SolvePNP", false);
 	NetworkTable->PutNumber("X Setpoint Offset", 0);
-	NetworkTable->PutNumber("Contrast Value", 1211);
+	NetworkTable->PutNumber("Contour Area Min Limit", 1211);
+	NetworkTable->PutNumber("Contour Area Max Limit", 2000);
+	NetworkTable->PutNumber("Center Line Tolerance", 50);
 	NetworkTable->PutNumber("HMN", 48);
 	NetworkTable->PutNumber("HMX", 104);
 	NetworkTable->PutNumber("SMN", 0);
@@ -369,8 +371,9 @@ int main(int argc, char* argv[])
 		// Vision options and values.
 		int targetCenterX = 0;
 		int targetCenterY = 0;
-		double contrastValue = 0;
-		double targetAngle = 0;
+		int centerLineTolerance = 0;
+		double contourAreaMinLimit = 0;
+		double contourAreaMaxLimit = 0;
 		bool cameraSourceIndex = false;
 		bool tuningMode = false;
 		bool drivingMode = false;
@@ -381,7 +384,7 @@ int main(int argc, char* argv[])
 
 		// Start multi-threading.
 		thread VideoGetThread(&VideoGet::StartCapture, &VideoGetter, ref(frame), ref(cameraSourceIndex), ref(drivingMode), ref(MutexGet));
-		thread VideoProcessThread(&VideoProcess::Process, &VideoProcessor, ref(frame), ref(finalImg), ref(targetCenterX), ref(targetCenterY), ref(contrastValue), ref(targetAngle), ref(tuningMode), ref(drivingMode), ref(trackingMode), ref(enableSolvePNP), ref(trackbarValues), ref(solvePNPValues), ref(VideoGetter), ref(MutexGet), ref(MutexShow));
+		thread VideoProcessThread(&VideoProcess::Process, &VideoProcessor, ref(frame), ref(finalImg), ref(targetCenterX), ref(targetCenterY), ref(centerLineTolerance), ref(contourAreaMinLimit), ref(contourAreaMaxLimit), ref(tuningMode), ref(drivingMode), ref(trackingMode), ref(enableSolvePNP), ref(trackbarValues), ref(solvePNPValues), ref(VideoGetter), ref(MutexGet), ref(MutexShow));
 		thread VideoShowerThread(&VideoShow::ShowFrame, &VideoShower, ref(finalImg), ref(cameraSources), ref(MutexShow));
 
 		while (1)
@@ -397,7 +400,9 @@ int main(int argc, char* argv[])
 					drivingMode = NetworkTable->GetBoolean("Driving Mode", false);
 					trackingMode = NetworkTable->GetBoolean("Pipe Tracking Mode", true);
 					enableSolvePNP = NetworkTable->GetBoolean("Enable SolvePNP", false);
-					contrastValue = NetworkTable->GetNumber("Contrast Value", 1211.0);
+					centerLineTolerance = NetworkTable->GetNumber("Center Line Tolerance", 50);
+					contourAreaMinLimit = NetworkTable->GetNumber("Contour Area Min Limit", 1211.0);
+					contourAreaMaxLimit = NetworkTable->GetNumber("Contour Area Max Limit", 2000);
 					trackbarValues[0] = int(NetworkTable->GetNumber("HMN", 1));
 					trackbarValues[1] = int(NetworkTable->GetNumber("HMX", 255));
 					trackbarValues[2] = int(NetworkTable->GetNumber("SMN", 1));
@@ -406,9 +411,8 @@ int main(int argc, char* argv[])
 					trackbarValues[5] = int(NetworkTable->GetNumber("VMX", 255));
 
 					// Put NetworkTables data.
-					NetworkTable->PutNumber("Target Center X", targetCenterX);
-					NetworkTable->PutNumber("Target Center Y", targetCenterY);
-					NetworkTable->PutNumber("Target Angle", (targetAngle + int(NetworkTable->GetNumber("X Setpoint Offset", 0))));
+					NetworkTable->PutNumber("Target Center X", (targetCenterX + int(NetworkTable->GetNumber("X Setpoint Offset", 0))));
+					NetworkTable->PutNumber("Target Width", targetCenterY);
 					NetworkTable->PutNumber("SPNP X Dist", solvePNPValues[0]);
 					NetworkTable->PutNumber("SPNP Y Dist", solvePNPValues[1]);
 					NetworkTable->PutNumber("SPNP Z Dist", solvePNPValues[2]);
