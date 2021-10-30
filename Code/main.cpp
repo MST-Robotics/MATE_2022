@@ -330,6 +330,7 @@ int main(int argc, char* argv[])
 	NetworkTable->PutBoolean("Tuning Mode", false);
 	NetworkTable->PutBoolean("Driving Mode", false);
 	NetworkTable->PutBoolean("Pipe Tracking Mode", true);
+	NetworkTable->PutBoolean("Tape Tracking Mode", false);
 	NetworkTable->PutBoolean("Enable SolvePNP", false);
 	NetworkTable->PutNumber("X Setpoint Offset", 0);
 	NetworkTable->PutNumber("Contour Area Min Limit", 1211);
@@ -344,7 +345,7 @@ int main(int argc, char* argv[])
 
 	/**************************************************************************
 	 			Start Cameras
-	 * ************************************************************************/
+	**************************************************************************/
 	for (const auto& config : cameraConfigs)
 	{
 		StartCamera(config);
@@ -377,8 +378,10 @@ int main(int argc, char* argv[])
 		bool cameraSourceIndex = false;
 		bool tuningMode = false;
 		bool drivingMode = false;
-		bool trackingMode = true;
+		int trackingMode = VideoProcess::PIPE_TRACKING;
 		bool enableSolvePNP = false;
+		enum SelectionStates { PIPE, TAPE };
+		int selectionState = PIPE;
 		vector<int> trackbarValues {1, 255, 1, 255, 1, 255};
 		vector<double> solvePNPValues {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
 
@@ -398,7 +401,47 @@ int main(int argc, char* argv[])
 					cameraSourceIndex = NetworkTable->GetBoolean("Camera Source", false);
 					tuningMode = NetworkTable->GetBoolean("Tuning Mode", false);
 					drivingMode = NetworkTable->GetBoolean("Driving Mode", false);
-					trackingMode = NetworkTable->GetBoolean("Pipe Tracking Mode", true);
+					bool pipeMode = NetworkTable->GetBoolean("Pipe Tracking Mode", true);
+					bool tapeMode = NetworkTable->GetBoolean("Tape Tracking Mode", false);
+					// Tracking mode selection state logic.
+					switch (selectionState)
+					{
+						case PIPE:
+							// If tape mode is selected move to other state.
+							if (tapeMode)
+							{
+								// Deselect pipe tracking mode.
+								NetworkTable->PutBoolean("Pipe Tracking Mode", false);
+								// Set tracking mode.
+								trackingMode = VideoProcess::TAPE_TRACKING;
+								// Move to other state.
+								selectionState = TAPE;
+							}
+							else
+							{
+								// Make sure pipe mode is true while in this state.
+								NetworkTable->PutBoolean("Pipe Tracking Mode", true);
+							}
+							break;
+
+						case TAPE:
+							// If pipe mode is selected move to other state.
+							if (pipeMode)
+							{
+								// Deselect tape tracking mode.
+								NetworkTable->PutBoolean("Tape Tracking Mode", false);
+								// Set tracking mode.
+								trackingMode = VideoProcess::PIPE_TRACKING;
+								// Move to other state.
+								selectionState = PIPE;
+							}
+							else
+							{
+								// Make sure tape mode is true while in this state.
+								NetworkTable->PutBoolean("Tape Tracking Mode", true);
+							}
+							break;
+					}
 					enableSolvePNP = NetworkTable->GetBoolean("Enable SolvePNP", false);
 					centerLineTolerance = NetworkTable->GetNumber("Center Line Tolerance", 50);
 					contourAreaMinLimit = NetworkTable->GetNumber("Contour Area Min Limit", 1211.0);

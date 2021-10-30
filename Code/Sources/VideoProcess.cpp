@@ -84,7 +84,7 @@ VideoProcess::~VideoProcess()
 
         Returns: 		Nothing
 ****************************************************************************/
-void VideoProcess::Process(Mat &frame, Mat &finalImg, int &targetCenterX, int &targetCenterY, int &centerLineTolerance, double &contourAreaMinLimit, double &contourAreaMaxLimit, bool &tuningMode, bool &drivingMode, bool &trackingMode, bool &solvePNPEnabled, vector<int> &trackbarValues, vector<double> &solvePNPValues, VideoGet &VideoGetter, shared_timed_mutex &MutexGet, shared_timed_mutex &MutexShow)
+void VideoProcess::Process(Mat &frame, Mat &finalImg, int &targetCenterX, int &targetCenterY, int &centerLineTolerance, double &contourAreaMinLimit, double &contourAreaMaxLimit, bool &tuningMode, bool &drivingMode, int &trackingMode, bool &solvePNPEnabled, vector<int> &trackbarValues, vector<double> &solvePNPValues, VideoGet &VideoGetter, shared_timed_mutex &MutexGet, shared_timed_mutex &MutexShow)
 {
     // Give other threads enough time to start before processing camera frames.
     this_thread::sleep_for(std::chrono::milliseconds(800));
@@ -112,7 +112,7 @@ void VideoProcess::Process(Mat &frame, Mat &finalImg, int &targetCenterX, int &t
                 blur(frame, blurImg, Size(greenBlurRadius, greenBlurRadius));
                 // Filter out specific color in image.
                 inRange(blurImg, Scalar(trackbarValues[0], trackbarValues[2], trackbarValues[4]), Scalar(trackbarValues[1], trackbarValues[3], trackbarValues[5]), filterImg);
-                // Apply blur to image.
+                // Remove small blobs.
                 dilate(filterImg, dilateImg, kernel);
 
                 // Find countours of image.
@@ -122,7 +122,7 @@ void VideoProcess::Process(Mat &frame, Mat &finalImg, int &targetCenterX, int &t
                 if (!drivingMode)
                 {
                     // Tracking mode. (Pipe or Tape)
-                    if (trackingMode)
+                    if (trackingMode == PIPE_TRACKING)
                     {
                         /****************************************************
                         *			Track pipe target
@@ -270,10 +270,14 @@ void VideoProcess::Process(Mat &frame, Mat &finalImg, int &targetCenterX, int &t
                             targetCenterY = -1;
                         }
                     }
-                    else
+                    else if (trackingMode == TAPE_TRACKING)
                     {
+                        /****************************************************
+                        *			Track box tape targets
+                        *****************************************************/
+                        
+                        
                         // This section of code is for the future.
-
                         // This is for tracking the chessboard.
                         // vector<Point2f> vImagePoints;
                         // vImagePoints.emplace_back(Point2f(0.0, 0.0));
@@ -294,11 +298,6 @@ void VideoProcess::Process(Mat &frame, Mat &finalImg, int &targetCenterX, int &t
                     // m_pContrastImg.copyTo(finalImg);
                     dilateImg.copyTo(finalImg);
                 }
-
-                // Release garbage mats.
-                HSVImg.release();
-                blurImg.release();
-                filterImg.release();
             }
         }
         catch (const exception& e)
