@@ -15,20 +15,32 @@ movement_speed = 0         // how fast the motors move our robot (Titanic) this 
                               not how fast the robot will move
 
 
+
+// We have to limit how fast the motors can actually move. I believe there is a maximum speed variable in other lines of code
+   If there is we can double the variable in this code and use it. But for now I will call it this:
+
+Maximum_Speed = (some value determined in testing?)
+
+// If a motor reaches maximum speed then its speed will no longer increase
+
+if ()
+
+
+
 // If there is no displacement, then theres some movement speed, and all of the motors are on. The motors are on because we want to keep moving towards the target
 
 if ((X_pixel_displacement) && (Y_pixel_displacement) == 0)
 {
   movement_speed == k*(some speed??)  // k is some constant we have determined (wont be a variavle) that will tell us the ratio of motor speed to movement speed
-  UFL == (some speed??)               // Up Front Left Motor
-  UFR == (some speed??)               // Up Front Right Motor
-  UBL == (some speed??)               // Up Back Left Motor
-  UBR == (some speed??)               // Up Back Right Motor
+  UFL == k*(some speed??)               // Up Front Left Motor
+  UFR == k*(some speed??)               // Up Front Right Motor
+  UBL == k*(some speed??)               // Up Back Left Motor
+  UBR == k*(some speed??)               // Up Back Right Motor
   
-  DFL == (some speed??)               // Down Front Left Motor
-  DFR == (some speed??)               // Down Front Right Motor
-  DBL == (some speed??)               // Down Back Left motor
-  DBR == (some speed??)               // Down Back Right motor
+  DFL == k*(some speed??)               // Down Front Left Motor
+  DFR == k*(some speed??)               // Down Front Right Motor
+  DBL == k*(some speed??)               // Down Back Left motor
+  DBR == k*(some speed??)               // Down Back Right motor
  }
  
  
@@ -170,4 +182,7 @@ if (target object) is (to the left of camera view)
 until the object is not to the left
 
 same for the right, up and down.
+
+Also need to add a way to limit motor speed so they dont break. I think there is a max speed variable in the other lines of code,
+we could double that variable and use it here..
 */
