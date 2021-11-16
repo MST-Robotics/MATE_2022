@@ -1,5 +1,5 @@
 DEPS_CFLAGS?=$(shell env PKG_CONFIG_PATH=/usr/local/frc/lib/pkgconfig pkg-config --cflags wpilibc)
-CXXFLAGS?=-std=c++17 -Wno-psabi
+CXXFLAGS?=-std=c++17 -Wno-psabi -g
 DEPS_LIBS?=$(shell env PKG_CONFIG_PATH=/usr/local/frc/lib/pkgconfig pkg-config --libs wpilibc)
 EXE=VISION
 DESTDIR?=/home/pi/

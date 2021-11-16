@@ -37,6 +37,16 @@ VideoProcess::VideoProcess()
     isStopped							    = false;
 
     ////
+    // Setup color ranges for box tape detection. (lowerthresh, upperthresh, tracking overlay color(B,G,R))
+    ////
+    colorRanges.emplace_back(vector<Scalar> { Scalar(91, 219, 118), Scalar(255, 255, 157), Scalar(255, 156, 64) });         // lightblue
+    colorRanges.emplace_back(vector<Scalar> { Scalar(100, 230, 45), Scalar(255, 255, 95), Scalar(219, 4, 12) });            // blue
+    colorRanges.emplace_back(vector<Scalar> { Scalar(0, 228, 90), Scalar(68, 255, 163), Scalar(0, 242, 255) });             // yellow
+    colorRanges.emplace_back(vector<Scalar> { Scalar(57, 230, 58), Scalar(71, 255, 211), Scalar(11, 117, 25) });            // green
+    colorRanges.emplace_back(vector<Scalar> { Scalar(128, 70, 0), Scalar(255, 201, 60), Scalar(255, 0, 195) });             // purple
+    colorRanges.emplace_back(vector<Scalar> { Scalar(0, 177, 15), Scalar(61, 255, 90), Scalar(9, 112, 222) });              // orange
+
+    ////
     // Setup SolvePNP data.
     ////
 
@@ -102,22 +112,11 @@ void VideoProcess::Process(Mat &frame, Mat &finalImg, int &targetCenterX, int &t
 
             if (!frame.empty())
             {
-                // Convert image from RGB to HSV.
-                //cvtColor(frame, HSVImg, COLOR_BGR2HSV);
                 // Acquire resource lock for show thread only after frame has been used.
                 unique_lock<shared_timed_mutex> guard(MutexShow);
                 // Copy frame to a new mat.
                 finalImg = frame.clone();
-                // Blur the image.
-                blur(frame, blurImg, Size(greenBlurRadius, greenBlurRadius));
-                // Filter out specific color in image.
-                inRange(blurImg, Scalar(trackbarValues[0], trackbarValues[2], trackbarValues[4]), Scalar(trackbarValues[1], trackbarValues[3], trackbarValues[5]), filterImg);
-                // Remove small blobs.
-                dilate(filterImg, dilateImg, kernel);
-
-                // Find countours of image.
-                findContours(dilateImg, contours, hierarchy, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);		////RETR_TREE //// TRY CHAIN_APPROX_SIMPLE		//// Not sure what this method of detection does, but it worked before: CHAIN_APPROX_TC89_KCOS
-
+                
                 // Driving mode.
                 if (!drivingMode)
                 {
@@ -127,6 +126,17 @@ void VideoProcess::Process(Mat &frame, Mat &finalImg, int &targetCenterX, int &t
                         /****************************************************
                         *			Track pipe target
                         *****************************************************/
+                        // Convert image from RGB to HSV.
+                        cvtColor(frame, HSVImg, COLOR_BGR2HSV);
+                        // Blur the image.
+                        blur(HSVImg, blurImg, Size(greenBlurRadius, greenBlurRadius));
+                        // Filter out specific color in image.
+                        inRange(blurImg, Scalar(trackbarValues[0], trackbarValues[2], trackbarValues[4]), Scalar(trackbarValues[1], trackbarValues[3], trackbarValues[5]), filterImg);
+                        // Remove small blobs.
+                        dilate(filterImg, dilateImg, kernel);
+
+                        // Find countours of image.
+                        findContours(dilateImg, contours, hierarchy, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);		////RETR_TREE //// TRY CHAIN_APPROX_SIMPLE		//// Not sure what this method of detection does, but it worked before: CHAIN_APPROX_TC89_KCOS
 
                         // Draw all contours in white.
                         // drawContours(finalImg, contours, -1, Scalar(255, 255, 210), 1, LINE_4, hierarchy);
@@ -275,7 +285,49 @@ void VideoProcess::Process(Mat &frame, Mat &finalImg, int &targetCenterX, int &t
                         /****************************************************
                         *			Track box tape targets
                         *****************************************************/
-                        
+                        // Convert image from RGB to HSV.
+                        cvtColor(frame, HSVImg, COLOR_BGR2HSV);
+                        // Blur the image.
+                        blur(HSVImg, blurImg, Size(greenBlurRadius, greenBlurRadius));
+
+                        // Loop through the scalar ranges in array and detect the colored tape for each one.
+                        for (vector<Scalar> colorRange : colorRanges)
+                        {
+                            // Create individual HSV ranges for each tape color. (blue, yellow, green, purple, red, pink, orange)
+                            inRange(blurImg, colorRange[0], colorRange[1], filterImg);                        
+                            // Remove small blobs.
+                            dilate(filterImg, dilateImg, kernel);
+                            // Find countours of image.
+                            findContours(dilateImg, contours, hierarchy, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);		////RETR_TREE //// TRY CHAIN_APPROX_SIMPLE		//// Not sure what this method of detection does, but it worked before: CHAIN_APPROX_TC89_KCOS
+
+                            vector<vector<Point>> filteredContours;
+                            for (vector<Point> contour : contours)
+                            {
+                                double area = contourArea(contour);
+                                if (area >= contourAreaMinLimit && area <= contourAreaMaxLimit)
+                                {
+                                    filteredContours.emplace_back(contour);
+                                }
+                            }
+
+                            // Check if we have detected one or more contours.
+                            if (filteredContours.size() >= 1)
+                            {
+                                // Sort contours from biggest to smallest.
+                                sort(filteredContours.begin(), filteredContours.end(), [](const vector<Point>& c1, const vector<Point>& c2) { return fabs(contourArea(c1, false)) > fabs(contourArea(c2, false)); });
+                                
+                                // Find the rotated bounding rect of only the biggest contour.
+                                Mat boxPts;
+                                RotatedRect minRect = minAreaRect(filteredContours[0]);
+                                Point2f rectPoints[4];
+                                minRect.points(rectPoints);
+                                // Draw the rotated rect in the color of current color range.
+                                for (int i = 0; i < 4; i++)
+                                {
+                                    line(finalImg, rectPoints[i], rectPoints[(i + 1) % 4], colorRange[2], LINE_4);
+                                }
+                            }
+                        }
                         
                         // This section of code is for the future.
                         // This is for tracking the chessboard.

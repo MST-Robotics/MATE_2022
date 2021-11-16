@@ -468,15 +468,17 @@ int main(int argc, char* argv[])
 					if (!cameraSourceIndex && setValuesToggle == false)		// Turret Camera.
 					{
 						// Put trackbar values for tape tracking.
-						NetworkTable->PutNumber("HMN", 48);
-						NetworkTable->PutNumber("HMX", 104);
-						NetworkTable->PutNumber("SMN", 0);
-						NetworkTable->PutNumber("SMX", 128);
-						NetworkTable->PutNumber("VMN", 0);
-						NetworkTable->PutNumber("VMX", 0);
+						NetworkTable->PutNumber("HMN", 94);
+						NetworkTable->PutNumber("HMX", 255);
+						NetworkTable->PutNumber("SMN", 236);
+						NetworkTable->PutNumber("SMX", 255);
+						NetworkTable->PutNumber("VMN", 58);
+						NetworkTable->PutNumber("VMX", 153);
 
 						// Set tracking mode.
 						NetworkTable->PutBoolean("Pipe Tracking Mode", true);
+						NetworkTable->PutNumber("Contour Area Min Limit", 10);
+						NetworkTable->PutNumber("Contour Area Max Limit", 50000);
 
 						// Set toggle.
 						setValuesToggle = true;
@@ -494,7 +496,9 @@ int main(int argc, char* argv[])
 							NetworkTable->PutNumber("VMX", 0);
 
 							// Set tracking mode.
-							NetworkTable->PutBoolean("Pipe Tracking Mode", false);
+							NetworkTable->PutBoolean("Tape Tracking Mode", true);
+							NetworkTable->PutNumber("Contour Area Min Limit", 760);
+							NetworkTable->PutNumber("Contour Area Max Limit", 24800);
 
 							// Set toggle.
 							setValuesToggle = false;

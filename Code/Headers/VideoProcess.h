@@ -79,6 +79,7 @@ private:
     vector<Point3f>				objectPoints;
     vector<vector<Point>>		contours;
     vector<Vec4i>				hierarchy;
+    vector<vector<Scalar>>      colorRanges;
     FPS*						FPSCounter;
 
     int							FPSCount;
