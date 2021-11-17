@@ -37,7 +37,7 @@ VideoProcess::VideoProcess()
     isStopped							    = false;
 
     ////
-    // Setup color ranges for box tape detection. (lowerthresh, upperthresh, tracking overlay color(B,G,R))
+    // Setup colors and ranges for box tape detection. (lowerthresh, upperthresh, tracking overlay color(B,G,R))
     ////
     colorRanges.emplace_back(vector<Scalar> { Scalar(91, 219, 118), Scalar(255, 255, 157), Scalar(255, 156, 64) });         // lightblue
     colorRanges.emplace_back(vector<Scalar> { Scalar(100, 230, 45), Scalar(255, 255, 95), Scalar(219, 4, 12) });            // blue
@@ -45,6 +45,12 @@ VideoProcess::VideoProcess()
     colorRanges.emplace_back(vector<Scalar> { Scalar(57, 230, 58), Scalar(71, 255, 211), Scalar(11, 117, 25) });            // green
     colorRanges.emplace_back(vector<Scalar> { Scalar(128, 70, 0), Scalar(255, 201, 60), Scalar(255, 0, 195) });             // purple
     colorRanges.emplace_back(vector<Scalar> { Scalar(0, 177, 15), Scalar(61, 255, 90), Scalar(9, 112, 222) });              // orange
+    colors.emplace_back("lightblue");
+    colors.emplace_back("blue");
+    colors.emplace_back("yellow");
+    colors.emplace_back("green");
+    colors.emplace_back("purple");
+    colors.emplace_back("orange");
 
     ////
     // Setup SolvePNP data.
@@ -291,6 +297,7 @@ void VideoProcess::Process(Mat &frame, Mat &finalImg, int &targetCenterX, int &t
                         blur(HSVImg, blurImg, Size(greenBlurRadius, greenBlurRadius));
 
                         // Loop through the scalar ranges in array and detect the colored tape for each one.
+                        map<string, RotatedRect> tapeObjects;
                         for (vector<Scalar> colorRange : colorRanges)
                         {
                             // Create individual HSV ranges for each tape color. (blue, yellow, green, purple, red, pink, orange)
@@ -326,9 +333,26 @@ void VideoProcess::Process(Mat &frame, Mat &finalImg, int &targetCenterX, int &t
                                 {
                                     line(finalImg, rectPoints[i], rectPoints[(i + 1) % 4], colorRange[2], LINE_4);
                                 }
+
+                                // Find the index of the currently detected tape object and then lookup and store its color.
+                                auto location = find(colorRanges.begin(), colorRanges.end(), colorRange);
+                                int index = location - colorRanges.begin();
+                                string color = colors[index];
+                                // Store the currently detected tape and its color, so we can do calculations later.
+                                tapeObjects[color] = minRect;
                             }
                         }
-                        
+
+                        // Sort the tapeObjects based on x position from left to right. 
+                        vector<pair<string, RotatedRect>> tapeObjectsSorted;
+                        // Copy key-value pair from map to vector of pairs.
+                        for (auto object : tapeObjects) 
+                        {
+                            tapeObjectsSorted.push_back(object);
+                        }
+                        // Sort using comparator function.
+                        sort(tapeObjectsSorted.begin(), tapeObjectsSorted.end(), [](const pair<string, RotatedRect>& t1, const pair<string, RotatedRect>& t2) { return t1.second.center.x < t2.second.center.x; });
+
                         // This section of code is for the future.
                         // This is for tracking the chessboard.
                         // vector<Point2f> vImagePoints;

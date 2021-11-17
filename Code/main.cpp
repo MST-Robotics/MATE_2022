@@ -421,6 +421,8 @@ int main(int argc, char* argv[])
 							{
 								// Make sure pipe mode is true while in this state.
 								NetworkTable->PutBoolean("Pipe Tracking Mode", true);
+								NetworkTable->PutNumber("Contour Area Min Limit", 10);
+								NetworkTable->PutNumber("Contour Area Max Limit", 50000);
 							}
 							break;
 
@@ -439,6 +441,8 @@ int main(int argc, char* argv[])
 							{
 								// Make sure tape mode is true while in this state.
 								NetworkTable->PutBoolean("Tape Tracking Mode", true);
+								NetworkTable->PutNumber("Contour Area Min Limit", 760);
+								NetworkTable->PutNumber("Contour Area Max Limit", 24800);
 							}
 							break;
 					}
@@ -477,8 +481,6 @@ int main(int argc, char* argv[])
 
 						// Set tracking mode.
 						NetworkTable->PutBoolean("Pipe Tracking Mode", true);
-						NetworkTable->PutNumber("Contour Area Min Limit", 10);
-						NetworkTable->PutNumber("Contour Area Max Limit", 50000);
 
 						// Set toggle.
 						setValuesToggle = true;
@@ -497,8 +499,6 @@ int main(int argc, char* argv[])
 
 							// Set tracking mode.
 							NetworkTable->PutBoolean("Tape Tracking Mode", true);
-							NetworkTable->PutNumber("Contour Area Min Limit", 760);
-							NetworkTable->PutNumber("Contour Area Max Limit", 24800);
 
 							// Set toggle.
 							setValuesToggle = false;

@@ -80,6 +80,7 @@ private:
     vector<vector<Point>>		contours;
     vector<Vec4i>				hierarchy;
     vector<vector<Scalar>>      colorRanges;
+    vector<string>                 colors;
     FPS*						FPSCounter;
 
     int							FPSCount;
