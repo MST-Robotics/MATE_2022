@@ -126,6 +126,7 @@ if ((X_pixel_displacement) && (Y_pixel_displacement) == 0)
     8) Titanic's movement depends on the motor speeds, are we constantly changing the motor speeds
        to keep a constant movement speed?
     9) if pixel displacement does reach 0 how fast can the motors increase or decrease speed?
+    10) 1100 to 1900
     
     
  
