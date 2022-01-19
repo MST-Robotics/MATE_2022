@@ -35,7 +35,7 @@ VideoProcess::VideoProcess()
     focalLength							    = (screenWidth / 2.0) / tan((cameraFOV * PI / 180.0) / 2.0);
     isStopping							    = false;
     isStopped							    = false;
-
+    
     ////
     // Setup colors and ranges for box tape detection. (lowerthresh, upperthresh, tracking overlay color(B,G,R))
     ////
@@ -100,7 +100,7 @@ VideoProcess::~VideoProcess()
 
         Returns: 		Nothing
 ****************************************************************************/
-void VideoProcess::Process(Mat &frame, Mat &finalImg, int &targetCenterX, int &targetCenterY, int &centerLineTolerance, double &contourAreaMinLimit, double &contourAreaMaxLimit, bool &tuningMode, bool &drivingMode, int &trackingMode, bool &solvePNPEnabled, vector<int> &trackbarValues, vector<double> &solvePNPValues, VideoGet &VideoGetter, shared_timed_mutex &MutexGet, shared_timed_mutex &MutexShow)
+void VideoProcess::Process(Mat &frame, Mat &finalImg, int &targetCenterX, int &targetCenterY, int &centerLineTolerance, double &contourAreaMinLimit, double &contourAreaMaxLimit, bool &tuningMode, bool &drivingMode, int &trackingMode, bool &takeShapshot, bool &solvePNPEnabled, vector<int> &trackbarValues, vector<double> &solvePNPValues, VideoGet &VideoGetter, shared_timed_mutex &MutexGet, shared_timed_mutex &MutexShow)
 {
     // Give other threads enough time to start before processing camera frames.
     this_thread::sleep_for(std::chrono::milliseconds(800));
@@ -126,247 +126,290 @@ void VideoProcess::Process(Mat &frame, Mat &finalImg, int &targetCenterX, int &t
                 // Driving mode.
                 if (!drivingMode)
                 {
-                    // Tracking mode. (Pipe or Tape)
-                    if (trackingMode == PIPE_TRACKING)
+                    // Tracking mode. (TrackingMode enum)
+                    switch (trackingMode)
                     {
-                        /****************************************************
-                        *			Track pipe target
-                        *****************************************************/
-                        // Convert image from RGB to HSV.
-                        cvtColor(frame, HSVImg, COLOR_BGR2HSV);
-                        // Blur the image.
-                        blur(HSVImg, blurImg, Size(greenBlurRadius, greenBlurRadius));
-                        // Filter out specific color in image.
-                        inRange(blurImg, Scalar(trackbarValues[0], trackbarValues[2], trackbarValues[4]), Scalar(trackbarValues[1], trackbarValues[3], trackbarValues[5]), filterImg);
-                        // Remove small blobs.
-                        dilate(filterImg, dilateImg, kernel);
-
-                        // Find countours of image.
-                        findContours(dilateImg, contours, hierarchy, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);		////RETR_TREE //// TRY CHAIN_APPROX_SIMPLE		//// Not sure what this method of detection does, but it worked before: CHAIN_APPROX_TC89_KCOS
-
-                        // Draw all contours in white.
-                        // drawContours(finalImg, contours, -1, Scalar(255, 255, 210), 1, LINE_4, hierarchy);
-
-                        // Only continue if we have more than two contours.
-                        if (contours.size() >= 2)
-                        {
-                            // 'Round off' all contours with convexHull.
-                            vector<vector<Point>> hulls;
-                            for (vector<Point> contour : contours)
-                            {
-                                vector<Point> hull;
-                                convexHull(contour, hull);
-                                hulls.emplace_back(hull);
-                            }
-                            
-                            // Sort contours from biggest to smallest.
-                            sort(hulls.begin(), hulls.end(), [](const vector<Point>& c1, const vector<Point>& c2) {	return fabs(contourArea(c1, false)) > fabs(contourArea(c2, false)); });
-                            
-                            // Remove contours whose area doesn't meet the threshold.
-                            vector<vector<Point>> filteredHulls;
-                            for (vector<Point> hull : hulls)
-                            {
-                                double area = contourArea(hull);
-                                if (area >= contourAreaMinLimit && area <= contourAreaMaxLimit)
-                                {
-                                    filteredHulls.emplace_back(hull);
-                                }
-                            }
-
-                            // Only continue if we have more than two contours.
-                            if (filteredHulls.size() > 2)
-                            {
-                                // Draw convex hull contours.
-                                polylines(finalImg, filteredHulls, true, Scalar(255, 255, 210), 1);
-
-                                // Store the upper and lower extremes of each hull contour.
-                                vector<vector<int>> hullExtremes;
-                                for (vector<Point> hull : filteredHulls)
-                                {
-                                    // Find and store the bounding rect. (Rect type contains x, y, height, width)
-                                    auto val = minmax_element(hull.begin(), hull.end(), [](Point const& a, Point const& b) { return a.y < b.y; });
-                                    vector<int> point;
-                                    point.emplace_back(val.first->x);
-                                    point.emplace_back(val.first->y);
-                                    point.emplace_back(val.second->x);
-                                    point.emplace_back(val.second->y);
-                                    hullExtremes.emplace_back(point);
-                                }
-
-                                // Now that we have the lines, find the tallest one.
-                                int minLineLength = 50;
-                                vector<int> tallestLine1 = {0, 0, 0, minLineLength};
-                                for (vector<int> line : hullExtremes)
-                                {
-                                    // Compare the y distance of the line to the currently stored biggest one.
-                                    if ((line[3] - line[1]) > (tallestLine1[3] - tallestLine1[1]))
-                                    {
-                                        tallestLine1.assign(line.begin(), line.end());
-                                    }
-                                }
-
-                                // Remove the line we just found.
-                                hullExtremes.erase(remove(hullExtremes.begin(), hullExtremes.end(), tallestLine1));
-                                // Find the next tallest line segment.
-                                vector<int> tallestLine2 = {screenWidth, 0, screenWidth, minLineLength};
-                                for (vector<int> line : hullExtremes)
-                                {
-                                    // Compare the y distance of the line to the currently stored biggest one.
-                                    if ((line[3] - line[1]) > (tallestLine2[3] - tallestLine2[1]))
-                                    {
-                                        tallestLine2.assign(line.begin(), line.end());
-                                    }
-                                }
-
-                                // Find the center line.
-                                vector<int> centerLine;
-                                if (tallestLine1[0] < tallestLine2[0])
-                                {
-                                    centerLine = {(tallestLine1[0] + ((tallestLine2[0] - tallestLine1[0]) / 2)), tallestLine1[1], (tallestLine1[2] + ((tallestLine2[2] - tallestLine1[2]) / 2)), tallestLine1[3]};
-                                }
-                                else
-                                {
-                                    centerLine = {(tallestLine2[0] + ((tallestLine1[0] - tallestLine2[0]) / 2)), tallestLine1[1], (tallestLine2[2] + ((tallestLine1[2] - tallestLine2[2]) / 2)), tallestLine1[3]};
-                                }
-
-                                // Calculate the X center of the center line.
-                                int lineCenterX = (((centerLine[0] - centerLine[2]) / 2) + centerLine[2]) - (screenWidth / 2);
-                                // Calculate the width of the pipe channel.
-                                int lineCenterY = fabs(((tallestLine1[0] - tallestLine1[2]) / 2) - ((tallestLine2[0] - tallestLine2[2]) / 2));
-                                // If center line is not close to the center of the screen, then don't draw and output zero.
-                                if (fabs(lineCenterX) < centerLineTolerance)
-                                {
-                                    // Draw the two tallest line segments and the center line.
-                                    line(finalImg, Point(tallestLine2[0], tallestLine2[1]), Point(tallestLine2[2], tallestLine2[3]), Scalar(255, 0, 0), 3, LINE_4, 0);
-                                    line(finalImg, Point(tallestLine1[0], tallestLine1[1]), Point(tallestLine1[2], tallestLine1[3]), Scalar(255, 0, 0), 3, LINE_4, 0);
-                                    line(finalImg, Point(centerLine[0], centerLine[1]), Point(centerLine[2], centerLine[3]), Scalar(0, 200, 0), 3, LINE_4, 0);
-                                    
-                                    // Push position of tracked target.
-                                    targetCenterX = lineCenterX;
-                                    targetCenterY = lineCenterY;
-                                }
-                                else
-                                {
-                                    // Push a default center values.
-                                    targetCenterX = 0;
-                                    targetCenterY = -1;
-                                }
-
-                                // // Store/convert the hulls contours into a Mat.
-                                // Mat mEdgeImg = Mat::zeros(finalImg.size(), CV_8UC1);
-                                // polylines(mEdgeImg, hulls, true, Scalar(255, 255, 255), 8);
-                                // mEdgeImg.copyTo(dilateImg);
-                                // // drawContours(mEdgeImg, hulls, -1, Scalar(255, 255, 255), 1, LINE_4);
-
-                                // // Setup HoughLinesP function variables.
-                                // double dRHO = 1;									// Distance resolution in pixels of the hough grid.
-                                // double dTheta = PI / 30;							// Angular resolution in radians of the hough grid.
-                                // int nThreshold = 30;								// Minimum number of votes.
-                                // double dMinLineLength = 50;							// Minimum number of pixels making up a line.
-                                // double dMaxLineGap = 50;							// Maximum gap in pixels between connectable line segments.
-                                // // Use HoughLinesP algorithm to detect potential line segments.
-                                // vector<Vec4i> lines;
-                                // HoughLinesP(mEdgeImg, lines, dRHO, dTheta, nThreshold, dMinLineLength, dMaxLineGap);
-
-                                // // Draw the detected lines.
-                                // for (Vec4i line : lines)
-                                // {
-                                // 	// Draw line.
-                                // 	line(finalImg, Point(line[0], line[1]), Point(line[2], line[3]), Scalar(0, 0, 255), 4, LINE_4, 0);
-                                // }
-                                
-                                // Sort array based on coordinates (leftmost to rightmost) to make sure contours are adjacent.
-                                // sort(vBiggestContours.begin(), vBiggestContours.end(), [](const vector<double>& points1, const vector<double>& points2) { return points1[0] < points2[0]; }); 		// Sorts using nCX location.	
-                            }
-                        }
-                        else
-                        {
-                            // No contours to track. Output zero.
-                            targetCenterX = 0;
-                            targetCenterY = -1;
-                        }
-                    }
-                    else if (trackingMode == TAPE_TRACKING)
-                    {
-                        /****************************************************
-                        *			Track box tape targets
-                        *****************************************************/
-                        // Convert image from RGB to HSV.
-                        cvtColor(frame, HSVImg, COLOR_BGR2HSV);
-                        // Blur the image.
-                        blur(HSVImg, blurImg, Size(greenBlurRadius, greenBlurRadius));
-
-                        // Loop through the scalar ranges in array and detect the colored tape for each one.
-                        map<string, RotatedRect> tapeObjects;
-                        for (vector<Scalar> colorRange : colorRanges)
-                        {
-                            // Create individual HSV ranges for each tape color. (blue, yellow, green, purple, red, pink, orange)
-                            inRange(blurImg, colorRange[0], colorRange[1], filterImg);                        
+                        case TRENCH_TRACKING:
+                            /****************************************************
+                            *			Track trench target
+                            *****************************************************/
+                            // Convert image from RGB to HSV.
+                            cvtColor(frame, HSVImg, COLOR_BGR2HSV);
+                            // Blur the image.
+                            blur(HSVImg, blurImg, Size(greenBlurRadius, greenBlurRadius));
+                            // Filter out specific color in image.
+                            inRange(blurImg, Scalar(trackbarValues[0], trackbarValues[2], trackbarValues[4]), Scalar(trackbarValues[1], trackbarValues[3], trackbarValues[5]), filterImg);
                             // Remove small blobs.
                             dilate(filterImg, dilateImg, kernel);
+
                             // Find countours of image.
                             findContours(dilateImg, contours, hierarchy, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);		////RETR_TREE //// TRY CHAIN_APPROX_SIMPLE		//// Not sure what this method of detection does, but it worked before: CHAIN_APPROX_TC89_KCOS
 
-                            vector<vector<Point>> filteredContours;
-                            for (vector<Point> contour : contours)
-                            {
-                                double area = contourArea(contour);
-                                if (area >= contourAreaMinLimit && area <= contourAreaMaxLimit)
-                                {
-                                    filteredContours.emplace_back(contour);
-                                }
-                            }
+                            // Draw all contours in white.
+                            // drawContours(finalImg, contours, -1, Scalar(255, 255, 210), 1, LINE_4, hierarchy);
 
-                            // Check if we have detected one or more contours.
-                            if (filteredContours.size() >= 1)
+                            // Only continue if we have more than two contours.
+                            if (contours.size() >= 2)
                             {
-                                // Sort contours from biggest to smallest.
-                                sort(filteredContours.begin(), filteredContours.end(), [](const vector<Point>& c1, const vector<Point>& c2) { return fabs(contourArea(c1, false)) > fabs(contourArea(c2, false)); });
+                                // 'Round off' all contours with convexHull.
+                                vector<vector<Point>> hulls;
+                                for (vector<Point> contour : contours)
+                                {
+                                    vector<Point> hull;
+                                    convexHull(contour, hull);
+                                    hulls.emplace_back(hull);
+                                }
                                 
-                                // Find the rotated bounding rect of only the biggest contour.
-                                Mat boxPts;
-                                RotatedRect minRect = minAreaRect(filteredContours[0]);
-                                Point2f rectPoints[4];
-                                minRect.points(rectPoints);
-                                // Draw the rotated rect in the color of current color range.
-                                for (int i = 0; i < 4; i++)
+                                // Sort contours from biggest to smallest.
+                                sort(hulls.begin(), hulls.end(), [](const vector<Point>& c1, const vector<Point>& c2) {	return fabs(contourArea(c1, false)) > fabs(contourArea(c2, false)); });
+                                
+                                // Remove contours whose area doesn't meet the threshold.
+                                vector<vector<Point>> filteredHulls;
+                                for (vector<Point> hull : hulls)
                                 {
-                                    line(finalImg, rectPoints[i], rectPoints[(i + 1) % 4], colorRange[2], LINE_4);
+                                    double area = contourArea(hull);
+                                    if (area >= contourAreaMinLimit && area <= contourAreaMaxLimit)
+                                    {
+                                        filteredHulls.emplace_back(hull);
+                                    }
                                 }
 
-                                // Find the index of the currently detected tape object and then lookup and store its color.
-                                auto location = find(colorRanges.begin(), colorRanges.end(), colorRange);
-                                int index = location - colorRanges.begin();
-                                string color = colors[index];
-                                // Store the currently detected tape and its color, so we can do calculations later.
-                                tapeObjects[color] = minRect;
+                                // Only continue if we have more than two contours.
+                                if (filteredHulls.size() > 2)
+                                {
+                                    // Draw convex hull contours.
+                                    polylines(finalImg, filteredHulls, true, Scalar(255, 255, 210), 1);
+
+                                    // Store the upper and lower extremes of each hull contour.
+                                    vector<vector<int>> hullExtremes;
+                                    for (vector<Point> hull : filteredHulls)
+                                    {
+                                        // Find and store the bounding rect. (Rect type contains x, y, height, width)
+                                        auto val = minmax_element(hull.begin(), hull.end(), [](Point const& a, Point const& b) { return a.y < b.y; });
+                                        vector<int> point;
+                                        point.emplace_back(val.first->x);
+                                        point.emplace_back(val.first->y);
+                                        point.emplace_back(val.second->x);
+                                        point.emplace_back(val.second->y);
+                                        hullExtremes.emplace_back(point);
+                                    }
+
+                                    // Now that we have the lines, find the tallest one.
+                                    int minLineLength = 50;
+                                    vector<int> tallestLine1 = {0, 0, 0, minLineLength};
+                                    for (vector<int> line : hullExtremes)
+                                    {
+                                        // Compare the y distance of the line to the currently stored biggest one.
+                                        if ((line[3] - line[1]) > (tallestLine1[3] - tallestLine1[1]))
+                                        {
+                                            tallestLine1.assign(line.begin(), line.end());
+                                        }
+                                    }
+
+                                    // Remove the line we just found.
+                                    hullExtremes.erase(remove(hullExtremes.begin(), hullExtremes.end(), tallestLine1));
+                                    // Find the next tallest line segment.
+                                    vector<int> tallestLine2 = {screenWidth, 0, screenWidth, minLineLength};
+                                    for (vector<int> line : hullExtremes)
+                                    {
+                                        // Compare the y distance of the line to the currently stored biggest one.
+                                        if ((line[3] - line[1]) > (tallestLine2[3] - tallestLine2[1]))
+                                        {
+                                            tallestLine2.assign(line.begin(), line.end());
+                                        }
+                                    }
+
+                                    // Find the center line.
+                                    vector<int> centerLine;
+                                    if (tallestLine1[0] < tallestLine2[0])
+                                    {
+                                        centerLine = {(tallestLine1[0] + ((tallestLine2[0] - tallestLine1[0]) / 2)), tallestLine1[1], (tallestLine1[2] + ((tallestLine2[2] - tallestLine1[2]) / 2)), tallestLine1[3]};
+                                    }
+                                    else
+                                    {
+                                        centerLine = {(tallestLine2[0] + ((tallestLine1[0] - tallestLine2[0]) / 2)), tallestLine1[1], (tallestLine2[2] + ((tallestLine1[2] - tallestLine2[2]) / 2)), tallestLine1[3]};
+                                    }
+
+                                    // Calculate the X center of the center line.
+                                    int lineCenterX = (((centerLine[0] - centerLine[2]) / 2) + centerLine[2]) - (screenWidth / 2);
+                                    // Calculate the width of the pipe channel.
+                                    int lineCenterY = fabs(((tallestLine1[0] - tallestLine1[2]) / 2) - ((tallestLine2[0] - tallestLine2[2]) / 2));
+                                    // If center line is not close to the center of the screen, then don't draw and output zero.
+                                    if (fabs(lineCenterX) < centerLineTolerance)
+                                    {
+                                        // Draw the two tallest line segments and the center line.
+                                        line(finalImg, Point(tallestLine2[0], tallestLine2[1]), Point(tallestLine2[2], tallestLine2[3]), Scalar(255, 0, 0), 3, LINE_4, 0);
+                                        line(finalImg, Point(tallestLine1[0], tallestLine1[1]), Point(tallestLine1[2], tallestLine1[3]), Scalar(255, 0, 0), 3, LINE_4, 0);
+                                        line(finalImg, Point(centerLine[0], centerLine[1]), Point(centerLine[2], centerLine[3]), Scalar(0, 200, 0), 3, LINE_4, 0);
+                                        
+                                        // Push position of tracked target.
+                                        targetCenterX = lineCenterX;
+                                        targetCenterY = lineCenterY;
+                                    }
+                                    else
+                                    {
+                                        // Push a default center values.
+                                        targetCenterX = 0;
+                                        targetCenterY = -1;
+                                    }
+
+                                    // // Store/convert the hulls contours into a Mat.
+                                    // Mat mEdgeImg = Mat::zeros(finalImg.size(), CV_8UC1);
+                                    // polylines(mEdgeImg, hulls, true, Scalar(255, 255, 255), 8);
+                                    // mEdgeImg.copyTo(dilateImg);
+                                    // // drawContours(mEdgeImg, hulls, -1, Scalar(255, 255, 255), 1, LINE_4);
+
+                                    // // Setup HoughLinesP function variables.
+                                    // double dRHO = 1;									// Distance resolution in pixels of the hough grid.
+                                    // double dTheta = PI / 30;							// Angular resolution in radians of the hough grid.
+                                    // int nThreshold = 30;								// Minimum number of votes.
+                                    // double dMinLineLength = 50;							// Minimum number of pixels making up a line.
+                                    // double dMaxLineGap = 50;							// Maximum gap in pixels between connectable line segments.
+                                    // // Use HoughLinesP algorithm to detect potential line segments.
+                                    // vector<Vec4i> lines;
+                                    // HoughLinesP(mEdgeImg, lines, dRHO, dTheta, nThreshold, dMinLineLength, dMaxLineGap);
+
+                                    // // Draw the detected lines.
+                                    // for (Vec4i line : lines)
+                                    // {
+                                    // 	// Draw line.
+                                    // 	line(finalImg, Point(line[0], line[1]), Point(line[2], line[3]), Scalar(0, 0, 255), 4, LINE_4, 0);
+                                    // }
+                                    
+                                    // Sort array based on coordinates (leftmost to rightmost) to make sure contours are adjacent.
+                                    // sort(vBiggestContours.begin(), vBiggestContours.end(), [](const vector<double>& points1, const vector<double>& points2) { return points1[0] < points2[0]; }); 		// Sorts using nCX location.	
+                                }
                             }
-                        }
+                            else
+                            {
+                                // No contours to track. Output zero.
+                                targetCenterX = 0;
+                                targetCenterY = -1;
+                            }
+                            break;
 
-                        // Sort the tapeObjects based on x position from left to right. 
-                        vector<pair<string, RotatedRect>> tapeObjectsSorted;
-                        // Copy key-value pair from map to vector of pairs.
-                        for (auto object : tapeObjects) 
-                        {
-                            tapeObjectsSorted.push_back(object);
-                        }
-                        // Sort using comparator function.
-                        sort(tapeObjectsSorted.begin(), tapeObjectsSorted.end(), [](const pair<string, RotatedRect>& t1, const pair<string, RotatedRect>& t2) { return t1.second.center.x < t2.second.center.x; });
+                        case LINE_TRACKING:
+                            /****************************************************
+                            *			Track fish net line target
+                            *****************************************************/
+                           
+                            break;
 
-                        // This section of code is for the future.
-                        // This is for tracking the chessboard.
-                        // vector<Point2f> vImagePoints;
-                        // vImagePoints.emplace_back(Point2f(0.0, 0.0));
-                        // int targetPositionX = 0; 
-                        // int targetPositionY = 0;
-                        // solvePNPValues = SolveObjectPose(vImagePoints, ref(finalImg), ref(frame), targetPositionX, targetPositionY);
+                        case FISH_TRACKING:
+                            /****************************************************
+                            *	Track dead and alive fish with YOLO neural network
+                            *****************************************************/
+                           break;
+
+                        case TAPE_TRACKING:
+                            /****************************************************
+                            *			Track box tape targets
+                            *****************************************************/
+                            // Convert image from RGB to HSV.
+                            cvtColor(frame, HSVImg, COLOR_BGR2HSV);
+                            // Blur the image.
+                            blur(HSVImg, blurImg, Size(greenBlurRadius, greenBlurRadius));
+
+                            // Loop through the scalar ranges in array and detect the colored tape for each one.
+                            map<string, RotatedRect> tapeObjects;
+                            for (vector<Scalar> colorRange : colorRanges)
+                            {
+                                // Create individual HSV ranges for each tape color. (blue, yellow, green, purple, red, pink, orange)
+                                inRange(blurImg, colorRange[0], colorRange[1], filterImg);                        
+                                // Remove small blobs.
+                                dilate(filterImg, dilateImg, kernel);
+                                // Find countours of image.
+                                findContours(dilateImg, contours, hierarchy, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);		////RETR_TREE //// TRY CHAIN_APPROX_SIMPLE		//// Not sure what this method of detection does, but it worked before: CHAIN_APPROX_TC89_KCOS
+
+                                // Filter out unwanted contours based on contour area.
+                                vector<vector<Point>> filteredContours;
+                                for (vector<Point> contour : contours)
+                                {
+                                    double area = contourArea(contour);
+                                    if (area >= contourAreaMinLimit && area <= contourAreaMaxLimit)
+                                    {
+                                        filteredContours.emplace_back(contour);
+                                    }
+                                }
+
+                                // Check if we have detected one or more contours.
+                                if (filteredContours.size() >= 1)
+                                {
+                                    // Sort contours from biggest to smallest.
+                                    sort(filteredContours.begin(), filteredContours.end(), [](const vector<Point>& c1, const vector<Point>& c2) { return fabs(contourArea(c1, false)) > fabs(contourArea(c2, false)); });
+                                    
+                                    // Find the rotated bounding rect of only the biggest contour.
+                                    Mat boxPts;
+                                    RotatedRect minRect = minAreaRect(filteredContours[0]);
+                                    Point2f rectPoints[4];
+                                    minRect.points(rectPoints);
+                                    // Draw the rotated rect in the color of current color range.
+                                    for (int i = 0; i < 4; i++)
+                                    {
+                                        line(finalImg, rectPoints[i], rectPoints[(i + 1) % 4], colorRange[2], LINE_4);
+                                    }
+
+                                    // Find the index of the currently detected tape object and then lookup and store its color.
+                                    auto location = find(colorRanges.begin(), colorRanges.end(), colorRange);
+                                    int index = location - colorRanges.begin();
+                                    string color = colors[index];
+                                    // Store the currently detected tape and its color, so we can do calculations later.
+                                    tapeObjects[color] = minRect;
+                                }
+                            }
+
+                            // Sort the tapeObjects based on x position from left to right. 
+                            vector<pair<string, RotatedRect>> tapeObjectsSorted;
+                            // Copy key-value pair from map to vector of pairs.
+                            for (auto object : tapeObjects) 
+                            {
+                                tapeObjectsSorted.push_back(object);
+                            }
+                            // Sort left to right using comparator function.
+                            sort(tapeObjectsSorted.begin(), tapeObjectsSorted.end(), [](const pair<string, RotatedRect>& t1, const pair<string, RotatedRect>& t2) { return t1.second.center.x < t2.second.center.x; });
+
+                            // Grab the current frame and crop the image down to just the side of the box.
+                            if (takeShapshot)
+                            {
+                                // Combine all of the tape objects into one large contour.
+                                vector<Point2f> boundingContour;
+                                for (pair<string, RotatedRect> object : tapeObjects)
+                                {
+                                    // Store the tape objects points
+                                    Point2f points[4];
+                                    object.second.points(points);
+
+                                    // Grab all points from the RotatedRect and add them to temporary contour.
+                                    for (Point2f point : points)
+                                        boundingContour.push_back(point);
+                                }
+
+                                if (boundingContour.size() >= 1)
+                                {
+                                    // Find the convex hull of the new combined contour.
+                                    Rect cropContour = boundingRect(boundingContour);
+                                    // Finally, make sure the boundingContour is within frame, and then crop.
+                                    Mat croppedImg = finalImg(cropContour);
+                                    // Copy cropped image to finalImg.
+                                    croppedImg.copyTo(finalImg);
+                                }
+                            }
+
+                            // This section of code is for the future.
+                            // This is for tracking the chessboard.
+                            // vector<Point2f> vImagePoints;
+                            // vImagePoints.emplace_back(Point2f(0.0, 0.0));
+                            // int targetPositionX = 0; 
+                            // int targetPositionY = 0;
+                            // solvePNPValues = SolveObjectPose(vImagePoints, ref(finalImg), ref(frame), targetPositionX, targetPositionY);
+                            break;
                     }
                 }
 
                 // Put FPS on image.
                 FPSCount = FPSCounter->FramesPerSec();
                 putText(finalImg, ("Camera FPS: " + to_string(VideoGetter.GetFPS())), Point(420, finalImg.rows - 40), FONT_HERSHEY_DUPLEX, 0.65, Scalar(200, 200, 200), 1);
-                putText(finalImg, ("Processor FPS: " + to_string(FPSCount)), Point(420, finalImg.rows - 20), FONT_HERSHEY_DUPLEX, 0.65, Scalar(200, 200, 200), 1);
+                putText(finalImg, ("Algorithm FPS: " + to_string(FPSCount)), Point(420, finalImg.rows - 20), FONT_HERSHEY_DUPLEX, 0.65, Scalar(200, 200, 200), 1);
 
                 // If tuning mode is enabled, then output contrast or brightness images.
                 if (tuningMode)
