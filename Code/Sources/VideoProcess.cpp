@@ -129,10 +129,11 @@ void VideoProcess::Process(Mat &frame, Mat &finalImg, int &targetCenterX, int &t
                     // Tracking mode. (TrackingMode enum)
                     switch (trackingMode)
                     {
+                        /****************************************************
+                        *			Track trench target
+                        *****************************************************/
                         case TRENCH_TRACKING:
-                            /****************************************************
-                            *			Track trench target
-                            *****************************************************/
+                        {
                             // Convert image from RGB to HSV.
                             cvtColor(frame, HSVImg, COLOR_BGR2HSV);
                             // Blur the image.
@@ -287,24 +288,110 @@ void VideoProcess::Process(Mat &frame, Mat &finalImg, int &targetCenterX, int &t
                                 targetCenterY = -1;
                             }
                             break;
+                        }    
 
+                        /****************************************************
+                        *			Track fish net line target
+                        *****************************************************/
                         case LINE_TRACKING:
-                            /****************************************************
-                            *			Track fish net line target
-                            *****************************************************/
-                           
+                        {
+                            // Create instance variables.
+                            int numberOfSplits = 6;
+                            int splitHeight = screenHeight / numberOfSplits;
+
+                            // Convert image from RGB to HSV.
+                            cvtColor(frame, HSVImg, COLOR_BGR2HSV);
+                            // Blur the image.
+                            blur(HSVImg, blurImg, Size(greenBlurRadius, greenBlurRadius));
+                            // Filter out specific color in image.
+                            inRange(blurImg, Scalar(trackbarValues[0], trackbarValues[2], trackbarValues[4]), Scalar(trackbarValues[1], trackbarValues[3], trackbarValues[5]), filterImg);
+                            // Remove small blobs.
+                            erode(filterImg, dilateImg, kernel);
+                            // "Inflate" image.
+                            dilate(dilateImg, dilateImg, kernel);
+                            
+
+                            // Split image vertically into four rectangles.
+                            vector<Mat> splitImages;
+                            for (int i = 1; i <= numberOfSplits; i++)
+                            {
+                                // Create area template for cropping.
+                                Rect ROI(0, (splitHeight * (i - 1)), screenWidth, splitHeight);
+                                // Crop image.
+                                splitImages.emplace_back(dilateImg(ROI));
+                            }
+
+                            // Loop through split images, and find the biggest contours center point.
+                            int counter = 1;
+                            vector<Point> circles;
+                            for (Mat image : splitImages)
+                            {
+                                // Find countours of image.
+                                findContours(image, contours, hierarchy, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
+                                
+                                // 'Round off' all contours with convexHull.
+                                // vector<vector<Point>> hulls;
+                                // for (vector<Point> contour : contours)
+                                // {
+                                //     vector<Point> hull;
+                                //     convexHull(contour, hull);
+                                //     hulls.emplace_back(hull);
+                                // }
+
+                                // Find the biggest contour.
+                                int biggestArea = contourAreaMinLimit;
+                                vector<Point> biggestContour;
+                                for (vector<Point> contour : contours)
+                                {
+                                    // Get current contour area.
+                                    int area = contourArea(contour);
+                                    // If bigger than last one, store it.
+                                    if (area > biggestArea)
+                                    {
+                                        // Store new biggest contour.
+                                        biggestContour = contour;
+                                    }
+                                }
+
+                                if (!biggestContour.empty())
+                                {
+                                    // Find the center point of biggest contour.
+                                    Moments moment = moments(biggestContour, true);
+                                    Point center(moment.m10 / moment.m00, moment.m01 / moment.m00);
+                                    // Append center circles to array.
+                                    circles.emplace_back(Point(center.x, (center.y + (splitHeight * (counter - 1)))));
+
+                                    // Draw contour outline and center onto image.
+                                    polylines(finalImg(Rect(0, (splitHeight * (counter - 1)), screenWidth, splitHeight)), biggestContour, true, Scalar(50, 200, 50), 3); 
+                                    circle(finalImg(Rect(0, (splitHeight * (counter - 1)), screenWidth, splitHeight)), center, 0, Scalar(255, 255, 255), 5);
+                                }
+
+                                // Increment counter.
+                                counter++;
+                            }
+
+                            // Draw a line between each circle.
+                            for (int i = 1; i < circles.size(); i++)
+                            {
+                                // Draw.
+                                line(finalImg, circles[i - 1], circles[i], Scalar(255, 0, 0), LINE_4);
+                            }
                             break;
+                        }
 
+                        /****************************************************
+                        *	Track dead and alive fish with YOLO neural network
+                        *****************************************************/
                         case FISH_TRACKING:
-                            /****************************************************
-                            *	Track dead and alive fish with YOLO neural network
-                            *****************************************************/
+                        {
                            break;
+                        }
 
+                        /****************************************************
+                        *			Track box tape targets
+                        *****************************************************/
                         case TAPE_TRACKING:
-                            /****************************************************
-                            *			Track box tape targets
-                            *****************************************************/
+                        { 
                             // Convert image from RGB to HSV.
                             cvtColor(frame, HSVImg, COLOR_BGR2HSV);
                             // Blur the image.
@@ -403,6 +490,7 @@ void VideoProcess::Process(Mat &frame, Mat &finalImg, int &targetCenterX, int &t
                             // int targetPositionY = 0;
                             // solvePNPValues = SolveObjectPose(vImagePoints, ref(finalImg), ref(frame), targetPositionX, targetPositionY);
                             break;
+                        }
                     }
                 }
 

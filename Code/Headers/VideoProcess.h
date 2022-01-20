@@ -50,7 +50,7 @@ public:
     // Declare class methods.
     VideoProcess();
     ~VideoProcess();
-    void Process(Mat &frame, Mat &finalImg, int &targetCenterX, int &targetCenterY, int &centerLineTolerance, double &contourAreaMinLimit, double &contourAreaMaxLimit, bool &tuningMode, bool &drivingMode, int &trackingMode, bool &solvePNPEnabled, vector<int> &trackbarValues, vector<double> &solvePNPValues, VideoGet &VideoGetter, shared_timed_mutex &MutexGet, shared_timed_mutex &MutexShow);
+    void Process(Mat &frame, Mat &finalImg, int &targetCenterX, int &targetCenterY, int &centerLineTolerance, double &contourAreaMinLimit, double &contourAreaMaxLimit, bool &tuningMode, bool &drivingMode, int &trackingMode, bool &takeShapshot, bool &solvePNPEnabled, vector<int> &trackbarValues, vector<double> &solvePNPValues, VideoGet &VideoGetter, shared_timed_mutex &MutexGet, shared_timed_mutex &MutexShow);
     int SignNum(double val);
     vector<double> SolveObjectPose(vector<Point2f> imagePoints, Mat &finalImg, Mat &frame, int targetPositionX, int targetPositionY);
     void SetIsStopping(bool isStopping);
@@ -60,7 +60,9 @@ public:
     // Declare public variables.
     enum TrackingMode
     {
-        PIPE_TRACKING = 0,
+        TRENCH_TRACKING = 0,
+        LINE_TRACKING,
+        FISH_TRACKING,
         TAPE_TRACKING
     };
 

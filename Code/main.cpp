@@ -1,4 +1,5 @@
 #include <cstdio>
+#include <chrono>
 #include <string>
 #include <thread>
 #include <mutex>
@@ -329,8 +330,11 @@ int main(int argc, char* argv[])
 	NetworkTable->PutBoolean("Camera Source", false);
 	NetworkTable->PutBoolean("Tuning Mode", false);
 	NetworkTable->PutBoolean("Driving Mode", false);
-	NetworkTable->PutBoolean("Pipe Tracking Mode", true);
+	NetworkTable->PutBoolean("Trench Tracking Mode", false);
+	NetworkTable->PutBoolean("Line Tracking Mode", false);
+	NetworkTable->PutBoolean("Fish Tracking Mode", true);
 	NetworkTable->PutBoolean("Tape Tracking Mode", false);
+	NetworkTable->PutBoolean("Take Shapshot", false);
 	NetworkTable->PutBoolean("Enable SolvePNP", false);
 	NetworkTable->PutNumber("X Setpoint Offset", 0);
 	NetworkTable->PutNumber("Contour Area Min Limit", 1211);
@@ -378,16 +382,18 @@ int main(int argc, char* argv[])
 		bool cameraSourceIndex = false;
 		bool tuningMode = false;
 		bool drivingMode = false;
-		int trackingMode = VideoProcess::PIPE_TRACKING;
+		int trackingMode = VideoProcess::FISH_TRACKING;
+		bool takeShapshot = false;
 		bool enableSolvePNP = false;
-		enum SelectionStates { PIPE, TAPE };
-		int selectionState = PIPE;
+		bool valsSet = false;
+		enum SelectionStates { TRENCH, LINE, FISH, TAPE };
+		int selectionState = FISH;
 		vector<int> trackbarValues {1, 255, 1, 255, 1, 255};
 		vector<double> solvePNPValues {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
 
 		// Start multi-threading.
 		thread VideoGetThread(&VideoGet::StartCapture, &VideoGetter, ref(frame), ref(cameraSourceIndex), ref(drivingMode), ref(MutexGet));
-		thread VideoProcessThread(&VideoProcess::Process, &VideoProcessor, ref(frame), ref(finalImg), ref(targetCenterX), ref(targetCenterY), ref(centerLineTolerance), ref(contourAreaMinLimit), ref(contourAreaMaxLimit), ref(tuningMode), ref(drivingMode), ref(trackingMode), ref(enableSolvePNP), ref(trackbarValues), ref(solvePNPValues), ref(VideoGetter), ref(MutexGet), ref(MutexShow));
+		thread VideoProcessThread(&VideoProcess::Process, &VideoProcessor, ref(frame), ref(finalImg), ref(targetCenterX), ref(targetCenterY), ref(centerLineTolerance), ref(contourAreaMinLimit), ref(contourAreaMaxLimit), ref(tuningMode), ref(drivingMode), ref(trackingMode), ref(takeShapshot), ref(enableSolvePNP), ref(trackbarValues), ref(solvePNPValues), ref(VideoGetter), ref(MutexGet), ref(MutexShow));
 		thread VideoShowerThread(&VideoShow::ShowFrame, &VideoShower, ref(finalImg), ref(cameraSources), ref(MutexShow));
 
 		while (1)
@@ -401,51 +407,232 @@ int main(int argc, char* argv[])
 					cameraSourceIndex = NetworkTable->GetBoolean("Camera Source", false);
 					tuningMode = NetworkTable->GetBoolean("Tuning Mode", false);
 					drivingMode = NetworkTable->GetBoolean("Driving Mode", false);
-					bool pipeMode = NetworkTable->GetBoolean("Pipe Tracking Mode", true);
+					bool trenchMode = NetworkTable->GetBoolean("Trench Tracking Mode", false);
+					bool lineMode = NetworkTable->GetBoolean("Line Tracking Mode", false);
+					bool fishMode = NetworkTable->GetBoolean("Fish Tracking Mode", true);
 					bool tapeMode = NetworkTable->GetBoolean("Tape Tracking Mode", false);
 					// Tracking mode selection state logic.
 					switch (selectionState)
 					{
-						case PIPE:
-							// If tape mode is selected move to other state.
-							if (tapeMode)
+						case TRENCH:
+							// If line mode is selected move to other state.
+							if (lineMode)
 							{
-								// Deselect pipe tracking mode.
-								NetworkTable->PutBoolean("Pipe Tracking Mode", false);
+								// Deselect trench tracking mode.
+								NetworkTable->PutBoolean("Trench Tracking Mode", false);
+								// Set tracking mode.
+								trackingMode = VideoProcess::LINE_TRACKING;
+								// Set update values toggle.
+								valsSet = false;
+								// Move to other state.
+								selectionState = LINE;
+							}
+							// If fish mode is selected move to other state.
+							else if (fishMode)
+							{
+								// Deselect trench tracking mode.
+								NetworkTable->PutBoolean("Trench Tracking Mode", false);
+								// Set tracking mode.
+								trackingMode = VideoProcess::FISH_TRACKING;
+								// Set update values toggle.
+								valsSet = false;
+								// Move to other state.
+								selectionState = FISH;
+							}
+							// If tape mode is selected move to other state.
+							else if (tapeMode)
+							{
+								// Deselect trench tracking mode.
+								NetworkTable->PutBoolean("Trench Tracking Mode", false);
 								// Set tracking mode.
 								trackingMode = VideoProcess::TAPE_TRACKING;
+								// Set update values toggle.
+								valsSet = false;
 								// Move to other state.
 								selectionState = TAPE;
 							}
 							else
 							{
-								// Make sure pipe mode is true while in this state.
-								NetworkTable->PutBoolean("Pipe Tracking Mode", true);
-								NetworkTable->PutNumber("Contour Area Min Limit", 10);
-								NetworkTable->PutNumber("Contour Area Max Limit", 50000);
+								// Make sure trench mode is true while in this state.
+								NetworkTable->PutBoolean("Trench Tracking Mode", true);
+								// Only set mode specific values once.
+								if (!valsSet)
+								{
+									// Update networktables values.
+									NetworkTable->PutNumber("Contour Area Min Limit", 10);
+									NetworkTable->PutNumber("Contour Area Max Limit", 50000);
+									NetworkTable->PutNumber("HMN", 94);
+									NetworkTable->PutNumber("HMX", 255);
+									NetworkTable->PutNumber("SMN", 236);
+									NetworkTable->PutNumber("SMX", 255);
+									NetworkTable->PutNumber("VMN", 58);
+									NetworkTable->PutNumber("VMX", 153);
+									// Update setVals flag.
+									valsSet = true;
+								}
+							}
+							break;
+
+						case LINE:
+							// If trench mode is selected move to other state.
+							if (trenchMode)
+							{
+								// Deselect line tracking mode.
+								NetworkTable->PutBoolean("Line Tracking Mode", false);
+								// Set tracking mode.
+								trackingMode = VideoProcess::TRENCH_TRACKING;
+								// Set update values toggle.
+								valsSet = false;
+								// Move to other state.
+								selectionState = TRENCH;
+							}
+							// If fish mode is selected move to other state.
+							else if (fishMode)
+							{
+								// Deselect line tracking mode.
+								NetworkTable->PutBoolean("Line Tracking Mode", false);
+								// Set tracking mode.
+								trackingMode = VideoProcess::FISH_TRACKING;
+								// Set update values toggle.
+								valsSet = false;
+								// Move to other state.
+								selectionState = FISH;
+							}
+							// If tape mode is selected move to other state.
+							else if (tapeMode)
+							{
+								// Deselect line tracking mode.
+								NetworkTable->PutBoolean("Line Tracking Mode", false);
+								// Set tracking mode.
+								trackingMode = VideoProcess::TAPE_TRACKING;
+								// Set update values toggle.
+								valsSet = false;
+								// Move to other state.
+								selectionState = TAPE;
+							}
+							else
+							{
+								// Make sure trench mode is true while in this state.
+								NetworkTable->PutBoolean("Line Tracking Mode", true);
+								// Only set mode specific values once.
+								if (!valsSet)
+								{
+									// Update networktables values.
+									NetworkTable->PutNumber("Contour Area Min Limit", 600);
+									NetworkTable->PutNumber("Contour Area Max Limit", 50000);
+									NetworkTable->PutNumber("HMN", 94);
+									NetworkTable->PutNumber("HMX", 255);
+									NetworkTable->PutNumber("SMN", 70);
+									NetworkTable->PutNumber("SMX", 255);
+									NetworkTable->PutNumber("VMN", 111);
+									NetworkTable->PutNumber("VMX", 255);
+									// Update setVals flag.
+									valsSet = true;
+								}
+							}
+							break;
+
+						case FISH:
+							// If trench mode is selected move to other state.
+							if (trenchMode)
+							{
+								// Deselect line tracking mode.
+								NetworkTable->PutBoolean("Fish Tracking Mode", false);
+								// Set tracking mode.
+								trackingMode = VideoProcess::TRENCH_TRACKING;
+								// Set update values toggle.
+								valsSet = false;
+								// Move to other state.
+								selectionState = TRENCH;
+							}
+							// If line mode is selected move to other state.
+							else if (lineMode)
+							{
+								// Deselect trench tracking mode.
+								NetworkTable->PutBoolean("Fish Tracking Mode", false);
+								// Set tracking mode.
+								trackingMode = VideoProcess::LINE_TRACKING;
+								// Set update values toggle.
+								valsSet = false;
+								// Move to other state.
+								selectionState = LINE;
+							}
+							// If tape mode is selected move to other state.
+							else if (tapeMode)
+							{
+								// Deselect line tracking mode.
+								NetworkTable->PutBoolean("Fish Tracking Mode", false);
+								// Set tracking mode.
+								trackingMode = VideoProcess::TAPE_TRACKING;
+								// Set update values toggle.
+								valsSet = false;
+								// Move to other state.
+								selectionState = TAPE;
+							}
+							else
+							{
+								// Make sure trench mode is true while in this state.
+								NetworkTable->PutBoolean("Fish Tracking Mode", true);
+								// Only set mode specific values once.
+								if (!valsSet)
+								{
+									// Update networktables values.
+									NetworkTable->PutNumber("Contour Area Min Limit", 0);
+									NetworkTable->PutNumber("Contour Area Max Limit", 0);
+									// Update setVals flag.
+									valsSet = true;
+								}
 							}
 							break;
 
 						case TAPE:
-							// If pipe mode is selected move to other state.
-							if (pipeMode)
+							// If trench mode is selected move to other state.
+							if (trenchMode)
 							{
 								// Deselect tape tracking mode.
 								NetworkTable->PutBoolean("Tape Tracking Mode", false);
 								// Set tracking mode.
-								trackingMode = VideoProcess::PIPE_TRACKING;
+								trackingMode = VideoProcess::TRENCH_TRACKING;
 								// Move to other state.
-								selectionState = PIPE;
+								selectionState = TRENCH;
+							}
+							// If line mode is selected move to other state.
+							else if (lineMode)
+							{
+								// Deselect trench tracking mode.
+								NetworkTable->PutBoolean("Tape Tracking Mode", false);
+								// Set tracking mode.
+								trackingMode = VideoProcess::LINE_TRACKING;
+								// Move to other state.
+								selectionState = LINE;
+							}
+							// If fish mode is selected move to other state.
+							else if (fishMode)
+							{
+								// Deselect line tracking mode.
+								NetworkTable->PutBoolean("Tape Tracking Mode", false);
+								// Set tracking mode.
+								trackingMode = VideoProcess::FISH_TRACKING;
+								// Move to other state.
+								selectionState = FISH;
 							}
 							else
 							{
 								// Make sure tape mode is true while in this state.
 								NetworkTable->PutBoolean("Tape Tracking Mode", true);
-								NetworkTable->PutNumber("Contour Area Min Limit", 760);
-								NetworkTable->PutNumber("Contour Area Max Limit", 24800);
+								// Only set mode specific values once.
+								if (!valsSet)
+								{
+									// Update networktables values.
+									NetworkTable->PutNumber("Contour Area Min Limit", 760);
+									NetworkTable->PutNumber("Contour Area Max Limit", 24800);
+									// Update setVals flag.
+									valsSet = true;
+								}
 							}
 							break;
 					}
+					takeShapshot = NetworkTable->GetBoolean("Take Shapshot", false);
 					enableSolvePNP = NetworkTable->GetBoolean("Enable SolvePNP", false);
 					centerLineTolerance = NetworkTable->GetNumber("Center Line Tolerance", 50);
 					contourAreaMinLimit = NetworkTable->GetNumber("Contour Area Min Limit", 1211.0);
@@ -466,46 +653,7 @@ int main(int argc, char* argv[])
 					NetworkTable->PutNumber("SPNP Roll", solvePNPValues[3]);
 					NetworkTable->PutNumber("SPNP Pitch", solvePNPValues[4]);
 					NetworkTable->PutNumber("SPNP Yaw", solvePNPValues[5]);
-
-					// Put different trackbar values on smartdashboard depending on camera source.
-					static bool setValuesToggle = false;
-					if (!cameraSourceIndex && setValuesToggle == false)		// Turret Camera.
-					{
-						// Put trackbar values for tape tracking.
-						NetworkTable->PutNumber("HMN", 94);
-						NetworkTable->PutNumber("HMX", 255);
-						NetworkTable->PutNumber("SMN", 236);
-						NetworkTable->PutNumber("SMX", 255);
-						NetworkTable->PutNumber("VMN", 58);
-						NetworkTable->PutNumber("VMX", 153);
-
-						// Set tracking mode.
-						NetworkTable->PutBoolean("Pipe Tracking Mode", true);
-
-						// Set toggle.
-						setValuesToggle = true;
-					}
-					else
-					{
-						if (cameraSourceIndex && setValuesToggle == true)	// Bottom Camera.
-						{
-							// Put trackbar values for tape tracking.
-							NetworkTable->PutNumber("HMN", 0);
-							NetworkTable->PutNumber("HMX", 0);
-							NetworkTable->PutNumber("SMN", 0);
-							NetworkTable->PutNumber("SMX", 0);
-							NetworkTable->PutNumber("VMN", 0);
-							NetworkTable->PutNumber("VMX", 0);
-
-							// Set tracking mode.
-							NetworkTable->PutBoolean("Tape Tracking Mode", true);
-
-							// Set toggle.
-							setValuesToggle = false;
-						}
-					}
 					
-
 					// Sleep.
 					this_thread::sleep_for(std::chrono::milliseconds(20));
 
