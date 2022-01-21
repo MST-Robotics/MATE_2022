@@ -518,8 +518,8 @@ int main(int argc, char* argv[])
 								if (!valsSet)
 								{
 									// Update networktables values.
-									NetworkTable->PutNumber("Contour Area Min Limit", 600);
-									NetworkTable->PutNumber("Contour Area Max Limit", 50000);
+									NetworkTable->PutNumber("Contour Area Min Limit", 250);
+									NetworkTable->PutNumber("Contour Area Max Limit", 300);
 									NetworkTable->PutNumber("HMN", 94);
 									NetworkTable->PutNumber("HMX", 255);
 									NetworkTable->PutNumber("SMN", 70);
@@ -593,6 +593,8 @@ int main(int argc, char* argv[])
 								NetworkTable->PutBoolean("Tape Tracking Mode", false);
 								// Set tracking mode.
 								trackingMode = VideoProcess::TRENCH_TRACKING;
+								// Set update values toggle.
+								valsSet = false;
 								// Move to other state.
 								selectionState = TRENCH;
 							}
@@ -603,6 +605,8 @@ int main(int argc, char* argv[])
 								NetworkTable->PutBoolean("Tape Tracking Mode", false);
 								// Set tracking mode.
 								trackingMode = VideoProcess::LINE_TRACKING;
+								// Set update values toggle.
+								valsSet = false;
 								// Move to other state.
 								selectionState = LINE;
 							}
@@ -613,6 +617,8 @@ int main(int argc, char* argv[])
 								NetworkTable->PutBoolean("Tape Tracking Mode", false);
 								// Set tracking mode.
 								trackingMode = VideoProcess::FISH_TRACKING;
+								// Set update values toggle.
+								valsSet = false;
 								// Move to other state.
 								selectionState = FISH;
 							}
@@ -647,12 +653,12 @@ int main(int argc, char* argv[])
 					// Put NetworkTables data.
 					NetworkTable->PutNumber("Target Center X", (targetCenterX + int(NetworkTable->GetNumber("X Setpoint Offset", 0))));
 					NetworkTable->PutNumber("Target Width", targetCenterY);
-					NetworkTable->PutNumber("SPNP X Dist", solvePNPValues[0]);
-					NetworkTable->PutNumber("SPNP Y Dist", solvePNPValues[1]);
-					NetworkTable->PutNumber("SPNP Z Dist", solvePNPValues[2]);
-					NetworkTable->PutNumber("SPNP Roll", solvePNPValues[3]);
-					NetworkTable->PutNumber("SPNP Pitch", solvePNPValues[4]);
-					NetworkTable->PutNumber("SPNP Yaw", solvePNPValues[5]);
+					// NetworkTable->PutNumber("SPNP X Dist", solvePNPValues[0]);
+					// NetworkTable->PutNumber("SPNP Y Dist", solvePNPValues[1]);
+					// NetworkTable->PutNumber("SPNP Z Dist", solvePNPValues[2]);
+					// NetworkTable->PutNumber("SPNP Roll", solvePNPValues[3]);
+					// NetworkTable->PutNumber("SPNP Pitch", solvePNPValues[4]);
+					// NetworkTable->PutNumber("SPNP Yaw", solvePNPValues[5]);
 					
 					// Sleep.
 					this_thread::sleep_for(std::chrono::milliseconds(20));

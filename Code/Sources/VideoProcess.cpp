@@ -141,7 +141,9 @@ void VideoProcess::Process(Mat &frame, Mat &finalImg, int &targetCenterX, int &t
                             // Filter out specific color in image.
                             inRange(blurImg, Scalar(trackbarValues[0], trackbarValues[2], trackbarValues[4]), Scalar(trackbarValues[1], trackbarValues[3], trackbarValues[5]), filterImg);
                             // Remove small blobs.
-                            dilate(filterImg, dilateImg, kernel);
+                            erode(filterImg, dilateImg, kernel);
+                            // "Inflate" image.
+                            dilate(dilateImg, dilateImg, kernel);
 
                             // Find countours of image.
                             findContours(dilateImg, contours, hierarchy, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);		////RETR_TREE //// TRY CHAIN_APPROX_SIMPLE		//// Not sure what this method of detection does, but it worked before: CHAIN_APPROX_TC89_KCOS
@@ -296,8 +298,12 @@ void VideoProcess::Process(Mat &frame, Mat &finalImg, int &targetCenterX, int &t
                         case LINE_TRACKING:
                         {
                             // Create instance variables.
-                            int numberOfSplits = 6;
-                            int splitHeight = screenHeight / numberOfSplits;
+                            int numberOfVerticalSplits = 6;
+                            int numberOfHorizontalSplits = 8;
+                            int splitSize = 0;
+                            int oppositeScreenRes = 0;
+                            static bool screenSplitToggle = false;
+                            vector<Point> linePoints;
 
                             // Convert image from RGB to HSV.
                             cvtColor(frame, HSVImg, COLOR_BGR2HSV);
@@ -310,20 +316,41 @@ void VideoProcess::Process(Mat &frame, Mat &finalImg, int &targetCenterX, int &t
                             // "Inflate" image.
                             dilate(dilateImg, dilateImg, kernel);
                             
-
-                            // Split image vertically into four rectangles.
+                            // Determine whether we are looking at a vertical or horizontal line.
                             vector<Mat> splitImages;
-                            for (int i = 1; i <= numberOfSplits; i++)
+                            if (screenSplitToggle)
                             {
-                                // Create area template for cropping.
-                                Rect ROI(0, (splitHeight * (i - 1)), screenWidth, splitHeight);
-                                // Crop image.
-                                splitImages.emplace_back(dilateImg(ROI));
+                                // Set splitSize for vertical screen.
+                                splitSize = screenHeight / numberOfVerticalSplits;
+                                oppositeScreenRes = screenWidth;
+
+                                // Split image vertically into rectangles.
+                                for (int i = 1; i <= numberOfVerticalSplits; i++)
+                                {
+                                    // Create area template for cropping.
+                                    Rect ROI(0, (splitSize * (i - 1)), oppositeScreenRes, splitSize);
+                                    // Crop image.
+                                    splitImages.emplace_back(dilateImg(ROI));
+                                }
+                            }
+                            else
+                            {
+                                // Set splitSize for horizontal screen.
+                                splitSize = screenWidth / numberOfHorizontalSplits;
+                                oppositeScreenRes = screenHeight;
+
+                                // Split image horizontally into rectangles.
+                                for (int i = 1; i <= numberOfHorizontalSplits; i++)
+                                {
+                                    // Create area template for cropping.
+                                    Rect ROI((splitSize * (i - 1)), 0, splitSize, oppositeScreenRes);
+                                    // Crop image.
+                                    splitImages.emplace_back(dilateImg(ROI));
+                                }
                             }
 
                             // Loop through split images, and find the biggest contours center point.
                             int counter = 1;
-                            vector<Point> circles;
                             for (Mat image : splitImages)
                             {
                                 // Find countours of image.
@@ -348,6 +375,8 @@ void VideoProcess::Process(Mat &frame, Mat &finalImg, int &targetCenterX, int &t
                                     // If bigger than last one, store it.
                                     if (area > biggestArea)
                                     {
+                                        // Set new biggest area.
+                                        biggestArea = area;
                                         // Store new biggest contour.
                                         biggestContour = contour;
                                     }
@@ -358,12 +387,37 @@ void VideoProcess::Process(Mat &frame, Mat &finalImg, int &targetCenterX, int &t
                                     // Find the center point of biggest contour.
                                     Moments moment = moments(biggestContour, true);
                                     Point center(moment.m10 / moment.m00, moment.m01 / moment.m00);
-                                    // Append center circles to array.
-                                    circles.emplace_back(Point(center.x, (center.y + (splitHeight * (counter - 1)))));
+                                    
 
-                                    // Draw contour outline and center onto image.
-                                    polylines(finalImg(Rect(0, (splitHeight * (counter - 1)), screenWidth, splitHeight)), biggestContour, true, Scalar(50, 200, 50), 3); 
-                                    circle(finalImg(Rect(0, (splitHeight * (counter - 1)), screenWidth, splitHeight)), center, 0, Scalar(255, 255, 255), 5);
+                                    // Draw locations are different depending on whether we are splitting vertically or horizontally.
+                                    if (screenSplitToggle)
+                                    {
+                                        // Check if current circle is close enough to last point before appending.
+                                        if (linePoints.empty() || ((center.y + (splitSize * (counter - 1))) - linePoints[counter - 1].y) < (splitSize + contourAreaMaxLimit))
+                                        {
+                                            // Append center circle to array.
+                                            linePoints.emplace_back(Point(center.x, (center.y + (splitSize * (counter - 1)))));
+
+                                            // Draw contour outline and center onto image.
+                                            polylines(finalImg(Rect(0, (splitSize * (counter - 1)), oppositeScreenRes, splitSize)), biggestContour, true, Scalar(50, 200, 50), 3); 
+                                            circle(finalImg(Rect(0, (splitSize * (counter - 1)), oppositeScreenRes, splitSize)), center, 4, Scalar(255, 255, 255), 5);
+                                            putText(finalImg(Rect(0, (splitSize * (counter - 1)), oppositeScreenRes, splitSize)), to_string(counter), center, FONT_HERSHEY_DUPLEX, 0.65, Scalar(200, 200, 200), 1);
+                                        }
+                                    }
+                                    else
+                                    {
+                                        // Check if current circle is close enough to last point before appending.
+                                        if (linePoints.empty() || ((center.x + (splitSize * (counter - 1)) - linePoints[counter - 1].x) < splitSize + contourAreaMaxLimit))
+                                        {
+                                            // Append center circle to array.
+                                            linePoints.emplace_back(Point((center.x + (splitSize * (counter - 1))), center.y));
+
+                                             // Draw contour outline and center onto image.
+                                            polylines(finalImg(Rect((splitSize * (counter - 1)), 0, splitSize, oppositeScreenRes)), biggestContour, true, Scalar(50, 200, 50), 3); 
+                                            circle(finalImg(Rect((splitSize * (counter - 1)), 0, splitSize, oppositeScreenRes)), center, 4, Scalar(255, 255, 255), 5);
+                                            putText(finalImg(Rect((splitSize * (counter - 1)), 0, splitSize, oppositeScreenRes)), to_string(counter), center, FONT_HERSHEY_DUPLEX, 0.65, Scalar(200, 200, 200), 1);
+                                        }
+                                    }
                                 }
 
                                 // Increment counter.
@@ -371,10 +425,16 @@ void VideoProcess::Process(Mat &frame, Mat &finalImg, int &targetCenterX, int &t
                             }
 
                             // Draw a line between each circle.
-                            for (int i = 1; i < circles.size(); i++)
+                            for (int i = 1; i < linePoints.size(); i++)
                             {
                                 // Draw.
-                                line(finalImg, circles[i - 1], circles[i], Scalar(255, 0, 0), LINE_4);
+                                line(finalImg, linePoints[i - 1], linePoints[i], Scalar(255, 0, 0), LINE_4);
+                            }
+
+                            // Flip-flop between vertical or horizontal splitting if our detected circles is low.
+                            if (linePoints.size() < 2)
+                            {
+                                screenSplitToggle = !screenSplitToggle;
                             }
                             break;
                         }
