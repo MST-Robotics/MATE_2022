@@ -346,6 +346,7 @@ int main(int argc, char* argv[])
 	NetworkTable->PutNumber("SMX", 128);
 	NetworkTable->PutNumber("VMN", 0);
 	NetworkTable->PutNumber("VMX", 0);
+	NetworkTable->PutNumberArray("Tracking Results", vector<double> {});
 
 	/**************************************************************************
 	 			Start Cameras
@@ -389,11 +390,12 @@ int main(int argc, char* argv[])
 		enum SelectionStates { TRENCH, LINE, FISH, TAPE };
 		int selectionState = FISH;
 		vector<int> trackbarValues {1, 255, 1, 255, 1, 255};
+		vector<double> trackingResults {};
 		vector<double> solvePNPValues {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
 
 		// Start multi-threading.
 		thread VideoGetThread(&VideoGet::StartCapture, &VideoGetter, ref(frame), ref(cameraSourceIndex), ref(drivingMode), ref(MutexGet));
-		thread VideoProcessThread(&VideoProcess::Process, &VideoProcessor, ref(frame), ref(finalImg), ref(targetCenterX), ref(targetCenterY), ref(centerLineTolerance), ref(contourAreaMinLimit), ref(contourAreaMaxLimit), ref(tuningMode), ref(drivingMode), ref(trackingMode), ref(takeShapshot), ref(enableSolvePNP), ref(trackbarValues), ref(solvePNPValues), ref(VideoGetter), ref(MutexGet), ref(MutexShow));
+		thread VideoProcessThread(&VideoProcess::Process, &VideoProcessor, ref(frame), ref(finalImg), ref(targetCenterX), ref(targetCenterY), ref(centerLineTolerance), ref(contourAreaMinLimit), ref(contourAreaMaxLimit), ref(tuningMode), ref(drivingMode), ref(trackingMode), ref(takeShapshot), ref(enableSolvePNP), ref(trackbarValues), ref(trackingResults), ref(solvePNPValues), ref(VideoGetter), ref(MutexGet), ref(MutexShow));
 		thread VideoShowerThread(&VideoShow::ShowFrame, &VideoShower, ref(finalImg), ref(cameraSources), ref(MutexShow));
 
 		while (1)
@@ -461,6 +463,7 @@ int main(int argc, char* argv[])
 									// Update networktables values.
 									NetworkTable->PutNumber("Contour Area Min Limit", 10);
 									NetworkTable->PutNumber("Contour Area Max Limit", 50000);
+									NetworkTable->PutNumberArray("Tracking Results", vector<double> {});
 									NetworkTable->PutNumber("HMN", 94);
 									NetworkTable->PutNumber("HMX", 255);
 									NetworkTable->PutNumber("SMN", 236);
@@ -519,7 +522,8 @@ int main(int argc, char* argv[])
 								{
 									// Update networktables values.
 									NetworkTable->PutNumber("Contour Area Min Limit", 250);
-									NetworkTable->PutNumber("Contour Area Max Limit", 300);
+									NetworkTable->PutNumber("Contour Area Max Limit", 70);
+									NetworkTable->PutNumberArray("Tracking Results", vector<double> {});
 									NetworkTable->PutNumber("HMN", 94);
 									NetworkTable->PutNumber("HMX", 255);
 									NetworkTable->PutNumber("SMN", 70);
@@ -579,6 +583,7 @@ int main(int argc, char* argv[])
 									// Update networktables values.
 									NetworkTable->PutNumber("Contour Area Min Limit", 0);
 									NetworkTable->PutNumber("Contour Area Max Limit", 0);
+									NetworkTable->PutNumberArray("Tracking Results", vector<double> {});
 									// Update setVals flag.
 									valsSet = true;
 								}
@@ -632,6 +637,7 @@ int main(int argc, char* argv[])
 									// Update networktables values.
 									NetworkTable->PutNumber("Contour Area Min Limit", 760);
 									NetworkTable->PutNumber("Contour Area Max Limit", 24800);
+									NetworkTable->PutNumberArray("Tracking Results", vector<double> {});
 									// Update setVals flag.
 									valsSet = true;
 								}
@@ -653,6 +659,7 @@ int main(int argc, char* argv[])
 					// Put NetworkTables data.
 					NetworkTable->PutNumber("Target Center X", (targetCenterX + int(NetworkTable->GetNumber("X Setpoint Offset", 0))));
 					NetworkTable->PutNumber("Target Width", targetCenterY);
+					NetworkTable->PutNumberArray("Tracking Results", trackingResults);
 					// NetworkTable->PutNumber("SPNP X Dist", solvePNPValues[0]);
 					// NetworkTable->PutNumber("SPNP Y Dist", solvePNPValues[1]);
 					// NetworkTable->PutNumber("SPNP Z Dist", solvePNPValues[2]);

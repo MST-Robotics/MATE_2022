@@ -100,7 +100,7 @@ VideoProcess::~VideoProcess()
 
         Returns: 		Nothing
 ****************************************************************************/
-void VideoProcess::Process(Mat &frame, Mat &finalImg, int &targetCenterX, int &targetCenterY, int &centerLineTolerance, double &contourAreaMinLimit, double &contourAreaMaxLimit, bool &tuningMode, bool &drivingMode, int &trackingMode, bool &takeShapshot, bool &solvePNPEnabled, vector<int> &trackbarValues, vector<double> &solvePNPValues, VideoGet &VideoGetter, shared_timed_mutex &MutexGet, shared_timed_mutex &MutexShow)
+void VideoProcess::Process(Mat &frame, Mat &finalImg, int &targetCenterX, int &targetCenterY, int &centerLineTolerance, double &contourAreaMinLimit, double &contourAreaMaxLimit, bool &tuningMode, bool &drivingMode, int &trackingMode, bool &takeShapshot, bool &solvePNPEnabled, vector<int> &trackbarValues, vector<double> &trackingResults, vector<double> &solvePNPValues, VideoGet &VideoGetter, shared_timed_mutex &MutexGet, shared_timed_mutex &MutexShow)
 {
     // Give other threads enough time to start before processing camera frames.
     this_thread::sleep_for(std::chrono::milliseconds(800));
@@ -298,7 +298,7 @@ void VideoProcess::Process(Mat &frame, Mat &finalImg, int &targetCenterX, int &t
                         case LINE_TRACKING:
                         {
                             // Create instance variables.
-                            int numberOfVerticalSplits = 6;
+                            int numberOfVerticalSplits = 8;
                             int numberOfHorizontalSplits = 8;
                             int splitSize = 0;
                             int oppositeScreenRes = 0;
@@ -350,11 +350,10 @@ void VideoProcess::Process(Mat &frame, Mat &finalImg, int &targetCenterX, int &t
                             }
 
                             // Loop through split images, and find the biggest contours center point.
-                            int counter = 1;
-                            for (Mat image : splitImages)
+                            for (int i = 0; i < splitImages.size(); i++)
                             {
                                 // Find countours of image.
-                                findContours(image, contours, hierarchy, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
+                                findContours(splitImages[i], contours, hierarchy, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
                                 
                                 // 'Round off' all contours with convexHull.
                                 // vector<vector<Point>> hulls;
@@ -388,40 +387,34 @@ void VideoProcess::Process(Mat &frame, Mat &finalImg, int &targetCenterX, int &t
                                     Moments moment = moments(biggestContour, true);
                                     Point center(moment.m10 / moment.m00, moment.m01 / moment.m00);
                                     
-
                                     // Draw locations are different depending on whether we are splitting vertically or horizontally.
                                     if (screenSplitToggle)
                                     {
                                         // Check if current circle is close enough to last point before appending.
-                                        if (linePoints.empty() || ((center.y + (splitSize * (counter - 1))) - linePoints[counter - 1].y) < (splitSize + contourAreaMaxLimit))
+                                        if (linePoints.empty() || fabs(center.x - linePoints[linePoints.size() - 1].x) < contourAreaMaxLimit)
                                         {
                                             // Append center circle to array.
-                                            linePoints.emplace_back(Point(center.x, (center.y + (splitSize * (counter - 1)))));
+                                            linePoints.emplace_back(Point(center.x, (center.y + (splitSize * i))));
 
                                             // Draw contour outline and center onto image.
-                                            polylines(finalImg(Rect(0, (splitSize * (counter - 1)), oppositeScreenRes, splitSize)), biggestContour, true, Scalar(50, 200, 50), 3); 
-                                            circle(finalImg(Rect(0, (splitSize * (counter - 1)), oppositeScreenRes, splitSize)), center, 4, Scalar(255, 255, 255), 5);
-                                            putText(finalImg(Rect(0, (splitSize * (counter - 1)), oppositeScreenRes, splitSize)), to_string(counter), center, FONT_HERSHEY_DUPLEX, 0.65, Scalar(200, 200, 200), 1);
+                                            polylines(finalImg(Rect(0, (splitSize * i), oppositeScreenRes, splitSize)), biggestContour, true, Scalar(50, 200, 50), 3); 
+                                            circle(finalImg(Rect(0, (splitSize * i), oppositeScreenRes, splitSize)), center, 4, Scalar(255, 255, 255), 5);
                                         }
                                     }
                                     else
                                     {
                                         // Check if current circle is close enough to last point before appending.
-                                        if (linePoints.empty() || ((center.x + (splitSize * (counter - 1)) - linePoints[counter - 1].x) < splitSize + contourAreaMaxLimit))
+                                        if (linePoints.empty() || fabs(center.y - linePoints[linePoints.size() - 1].y) < contourAreaMaxLimit)
                                         {
                                             // Append center circle to array.
-                                            linePoints.emplace_back(Point((center.x + (splitSize * (counter - 1))), center.y));
+                                            linePoints.emplace_back(Point((center.x + (splitSize * i)), center.y));
 
                                              // Draw contour outline and center onto image.
-                                            polylines(finalImg(Rect((splitSize * (counter - 1)), 0, splitSize, oppositeScreenRes)), biggestContour, true, Scalar(50, 200, 50), 3); 
-                                            circle(finalImg(Rect((splitSize * (counter - 1)), 0, splitSize, oppositeScreenRes)), center, 4, Scalar(255, 255, 255), 5);
-                                            putText(finalImg(Rect((splitSize * (counter - 1)), 0, splitSize, oppositeScreenRes)), to_string(counter), center, FONT_HERSHEY_DUPLEX, 0.65, Scalar(200, 200, 200), 1);
+                                            polylines(finalImg(Rect((splitSize * i), 0, splitSize, oppositeScreenRes)), biggestContour, true, Scalar(50, 200, 50), 3); 
+                                            circle(finalImg(Rect((splitSize * i), 0, splitSize, oppositeScreenRes)), center, 4, Scalar(255, 255, 255), 5);
                                         }
                                     }
                                 }
-
-                                // Increment counter.
-                                counter++;
                             }
 
                             // Draw a line between each circle.
@@ -431,8 +424,25 @@ void VideoProcess::Process(Mat &frame, Mat &finalImg, int &targetCenterX, int &t
                                 line(finalImg, linePoints[i - 1], linePoints[i], Scalar(255, 0, 0), LINE_4);
                             }
 
+                            // Send line tracking data to main thread if not empty.
+                            if (!linePoints.empty())
+                            {
+                                // Send data.
+                                for (Point point : linePoints)
+                                {
+                                    // Append x, y data in pairs in sequence.
+                                    trackingResults.emplace_back(point.x);
+                                    trackingResults.emplace_back(point.y);
+                                }
+                            }
+                            else
+                            {
+                                // If array is empty, then clear array.
+                                trackingResults.clear();
+                            }
+
                             // Flip-flop between vertical or horizontal splitting if our detected circles is low.
-                            if (linePoints.size() < 2)
+                            if (linePoints.size() < 3)
                             {
                                 screenSplitToggle = !screenSplitToggle;
                             }
