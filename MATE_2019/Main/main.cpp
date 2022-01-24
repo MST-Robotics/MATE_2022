@@ -21,7 +21,8 @@ SerialPort arduino(port, 115200);
 // Takes different test strings to send/receive back from the Arduino
 int main()
 {
-  const char* test_data = {"test", "0000", "gaming", "\0"};
+  const int data_size = 4;
+  const char* test_data[data_size] = {"test", "0000", "gaming", "\0"};
   
   // Loops until the arduino is connected
   while (!arduino.isConnected())
@@ -30,7 +31,7 @@ int main()
   }
   cout << " Arduino connection made" << endl << endl;
 
-  for (int i = 0; i < sizeof(test_data); i++) 
+  for (int i = 0; i < data_size; i++) 
   {
     cout << " Sending: " << test_data[i];
 
