@@ -31,7 +31,7 @@ SerialPort arduino(port, 115200);
 int main()
 {
   const int data_size = 4;
-  const char* test_data[data_size] = {"test", "00000000", "AAAAAAAA", "999999999999"};
+  string test_data[data_size] = {"test", "00000000", "AAAAAAAA", "999999999999"};
   
   // Loops until the arduino is connected
   while (!arduino.isConnected())
