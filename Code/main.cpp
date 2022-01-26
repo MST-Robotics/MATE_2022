@@ -383,10 +383,10 @@ int main(int argc, char* argv[])
 		bool cameraSourceIndex = false;
 		bool tuningMode = false;
 		bool drivingMode = false;
-		int trackingMode = VideoProcess::FISH_TRACKING;
 		bool takeShapshot = false;
 		bool enableSolvePNP = false;
 		bool valsSet = false;
+		int trackingMode = VideoProcess::FISH_TRACKING;
 		enum SelectionStates { TRENCH, LINE, FISH, TAPE };
 		int selectionState = FISH;
 		vector<int> trackbarValues {1, 255, 1, 255, 1, 255};
@@ -463,7 +463,6 @@ int main(int argc, char* argv[])
 									// Update networktables values.
 									NetworkTable->PutNumber("Contour Area Min Limit", 10);
 									NetworkTable->PutNumber("Contour Area Max Limit", 50000);
-									NetworkTable->PutNumberArray("Tracking Results", vector<double> {});
 									NetworkTable->PutNumber("HMN", 94);
 									NetworkTable->PutNumber("HMX", 255);
 									NetworkTable->PutNumber("SMN", 236);
@@ -523,7 +522,6 @@ int main(int argc, char* argv[])
 									// Update networktables values.
 									NetworkTable->PutNumber("Contour Area Min Limit", 250);
 									NetworkTable->PutNumber("Contour Area Max Limit", 70);
-									NetworkTable->PutNumberArray("Tracking Results", vector<double> {});
 									NetworkTable->PutNumber("HMN", 94);
 									NetworkTable->PutNumber("HMX", 255);
 									NetworkTable->PutNumber("SMN", 70);
@@ -583,7 +581,6 @@ int main(int argc, char* argv[])
 									// Update networktables values.
 									NetworkTable->PutNumber("Contour Area Min Limit", 0);
 									NetworkTable->PutNumber("Contour Area Max Limit", 0);
-									NetworkTable->PutNumberArray("Tracking Results", vector<double> {});
 									// Update setVals flag.
 									valsSet = true;
 								}
@@ -637,7 +634,6 @@ int main(int argc, char* argv[])
 									// Update networktables values.
 									NetworkTable->PutNumber("Contour Area Min Limit", 760);
 									NetworkTable->PutNumber("Contour Area Max Limit", 24800);
-									NetworkTable->PutNumberArray("Tracking Results", vector<double> {});
 									// Update setVals flag.
 									valsSet = true;
 								}
@@ -659,6 +655,10 @@ int main(int argc, char* argv[])
 					// Put NetworkTables data.
 					NetworkTable->PutNumber("Target Center X", (targetCenterX + int(NetworkTable->GetNumber("X Setpoint Offset", 0))));
 					NetworkTable->PutNumber("Target Width", targetCenterY);
+					if (!trackingResults.empty())
+					{
+						NetworkTable->PutBoolean("Line Is Vertical", trackingResults[0]);
+					}
 					NetworkTable->PutNumberArray("Tracking Results", trackingResults);
 					// NetworkTable->PutNumber("SPNP X Dist", solvePNPValues[0]);
 					// NetworkTable->PutNumber("SPNP Y Dist", solvePNPValues[1]);

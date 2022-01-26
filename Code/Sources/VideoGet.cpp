@@ -126,7 +126,7 @@ void VideoGet::StartCapture(Mat &frame, bool &cameraSourceIndex, bool &drivingMo
         catch (const exception& e)
         {
             //SetIsStopping(true);
-            cout << "WARNING: Video data empty or camera not present." << "\n" << e.what() << "\n";
+            cout << "WARNING: Video data empty or camera not present." << "\n" << e.what() << endl;
         }
 
         // Calculate FPS.

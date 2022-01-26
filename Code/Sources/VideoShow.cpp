@@ -21,7 +21,7 @@
 VideoShow::VideoShow()
 {
     // Create objects.
-    FPSCounter									= new FPS();
+    FPSCounter							= new FPS();
 
     // Initialize member variables.
     isStopping							= false;
@@ -78,13 +78,13 @@ void VideoShow::ShowFrame(Mat &frame, vector<CvSource> &cameraSources, shared_ti
             else
             {
                 // Print that frame is empty.
-                cout << "WARNING: Frame is empty!" << "\n";
+                cout << "WARNING: Frame is empty!" << endl;
             }
         }
         catch (const exception& e)
         {
             //SetIsStopping(true);
-            cout << "WARNING: MAT corrupt. Frame has been dropped." << "\n";
+            cout << "WARNING: MAT corrupt. Frame has been dropped." << endl;
         }
 
         // Calculate FPS.

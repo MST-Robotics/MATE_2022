@@ -123,6 +123,9 @@ void VideoProcess::Process(Mat &frame, Mat &finalImg, int &targetCenterX, int &t
                 // Copy frame to a new mat.
                 finalImg = frame.clone();
                 
+                // Reset tracking results array every iteration.
+                trackingResults.clear();
+
                 // Driving mode.
                 if (!drivingMode)
                 {
@@ -427,18 +430,16 @@ void VideoProcess::Process(Mat &frame, Mat &finalImg, int &targetCenterX, int &t
                             // Send line tracking data to main thread if not empty.
                             if (!linePoints.empty())
                             {
-                                // Send data.
+                                // Send whether line is vertical is horizontal.
+                                trackingResults.emplace_back(screenSplitToggle);
+
+                                // Send data point data.
                                 for (Point point : linePoints)
                                 {
                                     // Append x, y data in pairs in sequence.
                                     trackingResults.emplace_back(point.x);
                                     trackingResults.emplace_back(point.y);
                                 }
-                            }
-                            else
-                            {
-                                // If array is empty, then clear array.
-                                trackingResults.clear();
                             }
 
                             // Flip-flop between vertical or horizontal splitting if our detected circles is low.
@@ -582,7 +583,7 @@ void VideoProcess::Process(Mat &frame, Mat &finalImg, int &targetCenterX, int &t
             //SetIsStopping(true);
             // Print error to console and show that an error has occured on the screen.
             putText(finalImg, "Image Processing ERROR", Point(280, finalImg.rows - 440), FONT_HERSHEY_DUPLEX, 0.65, Scalar(0, 0, 250), 1);
-            cout << "\nWARNING: MAT corrupt or a runtime error has occured! Frame has been dropped." << "\n" << e.what();
+            cout << "\nWARNING: MAT corrupt or a runtime error has occured! Frame has been dropped." << "\n" << e.what() << endl;
         }
 
         // If the program stops shutdown the thread.
