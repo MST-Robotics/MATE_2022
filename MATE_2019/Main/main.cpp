@@ -1,5 +1,5 @@
 #include <iostream>
-
+#include <string>
 #include ".\Headers\Gamepad.h"
 #include ".\Headers\PID.h"
 #include ".\Headers\SerialPort.h"
@@ -30,8 +30,7 @@ SerialPort arduino(port, 115200);
 // Takes different test strings to send/receive back from the Arduino
 int main()
 {
-  const int data_size = 4;
-  string test_data[data_size] = {"test", "00000000", "AAAAAAAA", "999999999999"};
+  string test_data;
   
   // Loops until the arduino is connected
   while (!arduino.isConnected())
@@ -40,12 +39,13 @@ int main()
   }
   cout << " Arduino connection made" << endl << endl;
 
-  for (int i = 0; i < data_size; i++) 
+  while (True)
   {
-    cout << " Sending: " << test_data[i];
+    cin >> test_data;
+    cout << " Sending: " << test_data;
 
-    char* charArray = new char[test_data[i].size()];
-    copy(test_data[i].begin(), test_data[i].end(), charArray);
+    char* charArray = new char[test_data.size()];
+    copy(test_data[i].begin(), test_data.end(), charArray);
     
     // Send command array to arduino
     arduino.writeSerialPort(charArray, data.size() - 1);
