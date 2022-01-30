@@ -41,7 +41,7 @@ int main()
   }
   cout << " Arduino connection made" << endl << endl;
 
-  while (True)
+  while (true)
   {
     cin >> test_data;
     cout << " Sending: " << test_data;
