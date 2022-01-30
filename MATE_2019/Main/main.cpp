@@ -30,6 +30,8 @@ SerialPort arduino(port, 115200);
 // Takes different test strings to send/receive back from the Arduino
 int main()
 {
+  // const int data_length = ?; used if we pre-input test strings
+  // string *test_data[data_length] = {};
   string test_data;
   
   // Loops until the arduino is connected
