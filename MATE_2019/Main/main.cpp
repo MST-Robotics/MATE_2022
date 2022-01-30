@@ -43,8 +43,9 @@ int main()
 
   while (true)
   {
-    cin >> test_data;
-    cout << " Sending: " << test_data;
+    cout << "Input info: ";
+    getline(cin, test_data);
+    cout << " Sending: " << test_data << endl;
 
     char* charArray = new char[test_data.size()];
     copy(test_data[i].begin(), test_data.end(), charArray);
