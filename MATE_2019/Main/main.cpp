@@ -20,7 +20,7 @@ using namespace std;
 
 char output[MAX_DATA_LENGTH]; // This is currently 255
 
-const sleepTime = 90; // Added a new variable to easily change the command sleep time
+const int sleepTime = 90; // Added a new variable to easily change the command sleep time
 
 // Change the name of the port with the port name of your computer
 // Must remember that the backslashes are essential so do not remove them
