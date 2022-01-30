@@ -48,7 +48,7 @@ int main()
     cout << " Sending: " << test_data << endl;
 
     char* charArray = new char[test_data.size()];
-    copy(test_data[i].begin(), test_data.end(), charArray);
+    copy(test_data.begin(), test_data.end(), charArray);
     
     // Send command array to arduino
     arduino.writeSerialPort(charArray, data.size() - 1);
