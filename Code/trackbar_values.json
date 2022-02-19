@@ -1,0 +1,43 @@
+{
+  "version": 1.001,
+  "TRENCH": {
+    "ContourAreaMinLimit": 10,
+    "ContourAreaMaxLimit": 50000,
+    "HMN": 94,
+    "HMX": 255,
+    "SMN": 236,
+    "SMX": 255,
+    "VMN": 58,
+    "VMX": 153
+  },
+  "LINE": {
+    "ContourAreaMinLimit": 250,
+    "ContourAreaMaxLimit": 70,
+    "HMN": 94,
+    "HMX": 255,
+    "SMN": 70,
+    "SMX": 255,
+    "VMN": 111,
+    "VMX": 255
+  },
+  "FISH": {
+    "ContourAreaMinLimit": 0,
+    "ContourAreaMaxLimit": 0,
+    "HMN": 0,
+    "HMX": 0,
+    "SMN": 0,
+    "SMX": 0,
+    "VMN": 0,
+    "VMX": 0
+  },
+  "TAPE": {
+    "ContourAreaMinLimit": 760,
+    "ContourAreaMaxLimit": 24800,
+    "HMN": 0,
+    "HMX": 0,
+    "SMN": 0,
+    "SMX": 0,
+    "VMN": 0,
+    "VMX": 0
+  }
+}

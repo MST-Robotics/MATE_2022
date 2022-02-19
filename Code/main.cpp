@@ -12,6 +12,11 @@
 #include "Headers/VideoGet.h"
 #include "Headers/VideoProcess.h"
 #include "Headers/VideoShow.h"
+#include "Headers/rapidjson/filereadstream.h"
+#include "Headers/rapidjson/filewritestream.h"
+#include "Headers/rapidjson/writer.h"
+#include "Headers/rapidjson/document.h"
+
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/core/core.hpp>
 #include <opencv2/opencv.hpp>
@@ -31,6 +36,7 @@ using namespace nt;
 using namespace frc;
 using namespace wpi;
 using namespace std;
+using namespace rapidjson;
 
 /*
 	JSON format:
@@ -77,10 +83,14 @@ using namespace std;
 
 // Store config file.
 static const char* configFile = "/boot/frc.json";
+static const char* visionTuningFile = "/home/pi/UnderwaterRoboticsVision/MATE_2022/Code/trackbar_values.json";
 
 // Create namespace variables, stucts, and objects.
 unsigned int team;
 bool server = false;
+
+// Create json interactable object.
+Document visionTuningJSON;
 
 struct CameraConfig 
 {
@@ -207,7 +217,7 @@ bool ReadConfig()
 		try 
 		{
 			auto str = parseFile.at("ntmode").get<string>();
-			StringRef s(str);
+			wpi::StringRef s(str);
 			if (s.equals_lower("client")) 
 			{
 				server = false;
@@ -286,6 +296,77 @@ void StartCamera(const CameraConfig& config)
 }
 
 /****************************************************************************
+		Description:	Gets values from json file and updates networktables
+						with the corresponding values.
+
+		Arguments: 		AUTO &NetworkTable, STRING selectionState
+
+		Returns: 		Nothing
+****************************************************************************/
+void GetJSONValues(auto &NetworkTable, string selectionState)
+{
+	// Convert string parameter to char array.
+	char* state = &*selectionState.begin();
+
+	// Get corresponding object from JSON file based on tracking state.
+	const rapidjson::Value& object = visionTuningJSON[state];
+	int contourAreaMinLimit = object["ContourAreaMinLimit"].GetInt();
+	int contourAreaMaxLimit = object["ContourAreaMaxLimit"].GetInt();
+	int hmn = object["HMN"].GetInt();
+	int hmx = object["HMX"].GetInt();
+	int smn = object["SMN"].GetInt();
+	int smx = object["SMX"].GetInt();
+	int vmn = object["VMN"].GetInt();
+	int vmx = object["VMX"].GetInt();
+
+	// Update network tables with the values from the JSON document object.
+	NetworkTable->PutNumber("Contour Area Min Limit", contourAreaMinLimit);
+	NetworkTable->PutNumber("Contour Area Max Limit", contourAreaMaxLimit);
+	NetworkTable->PutNumber("HMN", hmn);
+	NetworkTable->PutNumber("HMX", hmx);
+	NetworkTable->PutNumber("SMN", smn);
+	NetworkTable->PutNumber("SMX", smx);
+	NetworkTable->PutNumber("VMN", vmn);
+	NetworkTable->PutNumber("VMX", vmx);
+}
+
+/****************************************************************************
+		Description:	Gets values from networktables and update the JSON file
+						with the corresponding values.
+
+		Arguments: 		AUTO &NetworkTable, STRING selectionState
+
+		Returns: 		Nothing
+****************************************************************************/
+void PutJSONValues(auto &NetworkTable, string selectionState)
+{
+	// Convert string parameter to char array.
+	char* state = &*selectionState.begin();
+
+	// Get corresponding object from JSON file based on tracking state.
+	rapidjson::Value& object = visionTuningJSON[state];
+	int contourAreaMinLimit = NetworkTable->GetNumber("Contour Area Min Limit", 0);
+	int contourAreaMaxLimit = NetworkTable->GetNumber("Contour Area Max Limit", 0);
+	int hmn = NetworkTable->GetNumber("HMN", 0);
+	int hmx = NetworkTable->GetNumber("HMX", 0);
+	int smn = NetworkTable->GetNumber("SMN", 0);
+	int smx = NetworkTable->GetNumber("SMX", 0);
+	int vmn = NetworkTable->GetNumber("VMN", 0);
+	int vmx = NetworkTable->GetNumber("VMX", 0);
+
+	// Update network tables with the values from the JSON document object.
+	object["ContourAreaMinLimit"].SetInt(contourAreaMinLimit);
+	object["ContourAreaMaxLimit"].SetInt(contourAreaMaxLimit);
+	object["HMN"].SetInt(hmn);
+	object["HMX"].SetInt(hmx);
+	object["SMN"].SetInt(smn);
+	object["SMX"].SetInt(smx);
+	object["VMN"].SetInt(vmn);
+	object["VMX"].SetInt(vmx);
+}
+
+
+/****************************************************************************
     Description:	Main method
 
     Arguments: 		None
@@ -297,15 +378,32 @@ int main(int argc, char* argv[])
 	/************************************************************************** 
 	  			Read Configurations
 	 * ************************************************************************/
+	// Set web dashboard config path if given as argument.
 	if (argc >= 2) 
 	{
 		configFile = argv[1];
 	}
 
+	// Read dashboard config.
 	if (!ReadConfig())
 	{
 		return EXIT_FAILURE;
 	}
+
+	// Open vision trackbar json for reading and writing.
+	FILE* jsonFile = fopen(visionTuningFile, "r");
+	// Check if file was successfully opened.
+	if (jsonFile == nullptr)
+	{
+		return EXIT_FAILURE;
+	}
+	
+	// Create empty data buffer.
+	char readBuffer[65536];
+	// Store opened file in buffer.
+	FileReadStream readFileStream(jsonFile, readBuffer, sizeof(readBuffer));
+	// Parse stream buffer into rapidjson document.
+	visionTuningJSON.ParseStream(readFileStream);
 
 	/**************************************************************************
 	  			Start NetworkTables
@@ -327,6 +425,7 @@ int main(int argc, char* argv[])
 	}
 
 	// Populate NetworkTables.
+	NetworkTable->PutBoolean("Write JSON", false);
 	NetworkTable->PutBoolean("Camera Source", false);
 	NetworkTable->PutBoolean("Tuning Mode", false);
 	NetworkTable->PutBoolean("Driving Mode", false);
@@ -380,6 +479,7 @@ int main(int argc, char* argv[])
 		int centerLineTolerance = 0;
 		double contourAreaMinLimit = 0;
 		double contourAreaMaxLimit = 0;
+		bool writeJSON = false;
 		bool cameraSourceIndex = false;
 		bool tuningMode = false;
 		bool drivingMode = false;
@@ -406,6 +506,7 @@ int main(int argc, char* argv[])
 				if (!VideoGetter.GetIsStopped() && !VideoProcessor.GetIsStopped() && !VideoShower.GetIsStopped())
 				{
 					// Get NetworkTables data.
+					writeJSON = NetworkTable->GetBoolean("Write JSON", false);
 					cameraSourceIndex = NetworkTable->GetBoolean("Camera Source", false);
 					tuningMode = NetworkTable->GetBoolean("Tuning Mode", false);
 					drivingMode = NetworkTable->GetBoolean("Driving Mode", false);
@@ -426,6 +527,8 @@ int main(int argc, char* argv[])
 								trackingMode = VideoProcess::LINE_TRACKING;
 								// Set update values toggle.
 								valsSet = false;
+								// Store current tackbar values for this tracking state into memory JSON.
+								PutJSONValues(NetworkTable, "TRENCH");
 								// Move to other state.
 								selectionState = LINE;
 							}
@@ -438,6 +541,8 @@ int main(int argc, char* argv[])
 								trackingMode = VideoProcess::FISH_TRACKING;
 								// Set update values toggle.
 								valsSet = false;
+								// Store current tackbar values for this tracking state into memory JSON.
+								PutJSONValues(NetworkTable, "TRENCH");
 								// Move to other state.
 								selectionState = FISH;
 							}
@@ -450,6 +555,8 @@ int main(int argc, char* argv[])
 								trackingMode = VideoProcess::TAPE_TRACKING;
 								// Set update values toggle.
 								valsSet = false;
+								// Store current tackbar values for this tracking state into memory JSON.
+								PutJSONValues(NetworkTable, "TRENCH");
 								// Move to other state.
 								selectionState = TAPE;
 							}
@@ -461,14 +568,7 @@ int main(int argc, char* argv[])
 								if (!valsSet)
 								{
 									// Update networktables values.
-									NetworkTable->PutNumber("Contour Area Min Limit", 10);
-									NetworkTable->PutNumber("Contour Area Max Limit", 50000);
-									NetworkTable->PutNumber("HMN", 94);
-									NetworkTable->PutNumber("HMX", 255);
-									NetworkTable->PutNumber("SMN", 236);
-									NetworkTable->PutNumber("SMX", 255);
-									NetworkTable->PutNumber("VMN", 58);
-									NetworkTable->PutNumber("VMX", 153);
+									GetJSONValues(NetworkTable, "TRENCH");
 									// Update setVals flag.
 									valsSet = true;
 								}
@@ -485,6 +585,8 @@ int main(int argc, char* argv[])
 								trackingMode = VideoProcess::TRENCH_TRACKING;
 								// Set update values toggle.
 								valsSet = false;
+								// Store current tackbar values for this tracking state into memory JSON.
+								PutJSONValues(NetworkTable, "LINE");
 								// Move to other state.
 								selectionState = TRENCH;
 							}
@@ -497,6 +599,8 @@ int main(int argc, char* argv[])
 								trackingMode = VideoProcess::FISH_TRACKING;
 								// Set update values toggle.
 								valsSet = false;
+								// Store current tackbar values for this tracking state into memory JSON.
+								PutJSONValues(NetworkTable, "LINE");
 								// Move to other state.
 								selectionState = FISH;
 							}
@@ -509,6 +613,8 @@ int main(int argc, char* argv[])
 								trackingMode = VideoProcess::TAPE_TRACKING;
 								// Set update values toggle.
 								valsSet = false;
+								// Store current tackbar values for this tracking state into memory JSON.
+								PutJSONValues(NetworkTable, "LINE");
 								// Move to other state.
 								selectionState = TAPE;
 							}
@@ -520,14 +626,7 @@ int main(int argc, char* argv[])
 								if (!valsSet)
 								{
 									// Update networktables values.
-									NetworkTable->PutNumber("Contour Area Min Limit", 250);
-									NetworkTable->PutNumber("Contour Area Max Limit", 70);
-									NetworkTable->PutNumber("HMN", 94);
-									NetworkTable->PutNumber("HMX", 255);
-									NetworkTable->PutNumber("SMN", 70);
-									NetworkTable->PutNumber("SMX", 255);
-									NetworkTable->PutNumber("VMN", 111);
-									NetworkTable->PutNumber("VMX", 255);
+									GetJSONValues(NetworkTable, "LINE");
 									// Update setVals flag.
 									valsSet = true;
 								}
@@ -544,6 +643,8 @@ int main(int argc, char* argv[])
 								trackingMode = VideoProcess::TRENCH_TRACKING;
 								// Set update values toggle.
 								valsSet = false;
+								// Store current tackbar values for this tracking state into memory JSON.
+								PutJSONValues(NetworkTable, "FISH");
 								// Move to other state.
 								selectionState = TRENCH;
 							}
@@ -556,6 +657,8 @@ int main(int argc, char* argv[])
 								trackingMode = VideoProcess::LINE_TRACKING;
 								// Set update values toggle.
 								valsSet = false;
+								// Store current tackbar values for this tracking state into memory JSON.
+								PutJSONValues(NetworkTable, "FISH");
 								// Move to other state.
 								selectionState = LINE;
 							}
@@ -568,6 +671,8 @@ int main(int argc, char* argv[])
 								trackingMode = VideoProcess::TAPE_TRACKING;
 								// Set update values toggle.
 								valsSet = false;
+								// Store current tackbar values for this tracking state into memory JSON.
+								PutJSONValues(NetworkTable, "FISH");
 								// Move to other state.
 								selectionState = TAPE;
 							}
@@ -579,8 +684,7 @@ int main(int argc, char* argv[])
 								if (!valsSet)
 								{
 									// Update networktables values.
-									NetworkTable->PutNumber("Contour Area Min Limit", 0);
-									NetworkTable->PutNumber("Contour Area Max Limit", 0);
+									GetJSONValues(NetworkTable, "FISH");
 									// Update setVals flag.
 									valsSet = true;
 								}
@@ -597,6 +701,8 @@ int main(int argc, char* argv[])
 								trackingMode = VideoProcess::TRENCH_TRACKING;
 								// Set update values toggle.
 								valsSet = false;
+								// Store current tackbar values for this tracking state into memory JSON.
+								PutJSONValues(NetworkTable, "TAPE");
 								// Move to other state.
 								selectionState = TRENCH;
 							}
@@ -609,6 +715,8 @@ int main(int argc, char* argv[])
 								trackingMode = VideoProcess::LINE_TRACKING;
 								// Set update values toggle.
 								valsSet = false;
+								// Store current tackbar values for this tracking state into memory JSON.
+								PutJSONValues(NetworkTable, "TAPE");
 								// Move to other state.
 								selectionState = LINE;
 							}
@@ -621,6 +729,8 @@ int main(int argc, char* argv[])
 								trackingMode = VideoProcess::FISH_TRACKING;
 								// Set update values toggle.
 								valsSet = false;
+								// Store current tackbar values for this tracking state into memory JSON.
+								PutJSONValues(NetworkTable, "TAPE");
 								// Move to other state.
 								selectionState = FISH;
 							}
@@ -632,8 +742,7 @@ int main(int argc, char* argv[])
 								if (!valsSet)
 								{
 									// Update networktables values.
-									NetworkTable->PutNumber("Contour Area Min Limit", 760);
-									NetworkTable->PutNumber("Contour Area Max Limit", 24800);
+									GetJSONValues(NetworkTable, "TAPE");
 									// Update setVals flag.
 									valsSet = true;
 								}
@@ -666,6 +775,21 @@ int main(int argc, char* argv[])
 					// NetworkTable->PutNumber("SPNP Roll", solvePNPValues[3]);
 					// NetworkTable->PutNumber("SPNP Pitch", solvePNPValues[4]);
 					// NetworkTable->PutNumber("SPNP Yaw", solvePNPValues[5]);
+
+					// Write current memory JSON document to disk if button is selected.
+					if (writeJSON)
+					{ 
+						// Setup a write data buffer.
+						char writeBuffer[65536];
+						FileWriteStream writeFileStream(jsonFile, writeBuffer, sizeof(writeBuffer));
+						// Create file writer.
+						Writer<FileWriteStream> writer(writeFileStream);
+						// Give the writer to JSON Document object for data writing.
+						visionTuningJSON.Accept(writer);
+
+						// Unselect toggle button after writing is done.
+						NetworkTable->PutBoolean("Write JSON", false);
+					}
 					
 					// Sleep.
 					this_thread::sleep_for(std::chrono::milliseconds(20));
@@ -694,6 +818,9 @@ int main(int argc, char* argv[])
 		VideoGetThread.join();
 		VideoProcessThread.join();
 		VideoShowerThread.join();
+
+		// Close opened file stream.
+		fcloseall();
 
 		// Print that program has safely and successfully shutdown.
 		cout << "All threads have been released! Program will now stop..." << "\n";
